@@ -1,6 +1,6 @@
 # Human character sources
 
-The body mesh, 65-bone skeleton, articulated hands and fingers come from **Quaternius — Universal Base Characters, Standard**, Superhero Male. Animations come from **Quaternius — Universal Animation Library, Standard**, Unreal-Godot version. Both asset packs use **CC0 1.0 Universal**; see the preserved license files in this directory.
+The body mesh, 65-bone skeleton, articulated hands and fingers come from **Quaternius — Universal Base Characters, Standard**, Superhero Male and Female. Animations come from **Quaternius — Universal Animation Library, Standard**, Unreal-Godot version. Both asset packs use **CC0 1.0 Universal**; see the preserved license files in this directory.
 
 Official author pages:
 
@@ -15,6 +15,8 @@ Source SHA-256 checksums, recorded 2026-10-13:
 - Body: `d6f3b64cab629f6ddca9ba063811aeffd3663a8a4e49ade47cd9505dc2bbd70f`
 - Animations: `69591853d817488edaa8fd9bf8fc1d821eaeaf789f8627b3cd23b41c4ed67997`
 
-`tools/prepare_human.py` builds `human.glb` from those two files. It adds fitted garment colors, a short rounded hairstyle weighted to the head bone, and nine selected animations. It calibrates rotations against both rigs' rest transforms, preserves the model's bone lengths and removes locomotion root travel so the game's CharacterBody3D controls position. Idle, walk, sprint, jump, landing, sit/stand and seated clips are included. No Rockstar, GTA or Mixamo assets are used.
+`tools/prepare_human.py` builds `human.glb` from those two files. It adds fitted garment colors, a short rounded hairstyle weighted to the head bone, and fourteen selected animations. It calibrates rotations against both rigs' rest transforms, preserves the model's bone lengths and removes locomotion root travel so the game's CharacterBody3D controls position. Idle, walk, sprint, jump, landing, sit/stand and seated clips are included. Talking, resting, jab/cross punches and hit reactions are also included. Eye whites and weighted pupils make the face more readable, and the female rig has tied hair. No Rockstar, GTA or Mixamo assets are used.
 
 The result is a stylized human, rather than a photorealistic character. Clothing is fitted to the body mesh, rather than separate cloth simulation. The game approaches a clear side of the vehicle and blends sit/stand motion and cameras; it does not animate vehicle doors or render an occupant inside the current vehicle interiors.
+
+The female model is from the same CC0 pack, retrieved as `Superhero_Female_FullBody.gltf` plus its `.bin` in `NafisRayan/Animate-Rigged-Humanoid-No-Blender/Universal Base Characters[Standard]/Universal Base Characters[Standard]/Base Characters/Godot - UE/`. Its textures are removed before preparing the clothing and animations. The packed source GLB has SHA-256 `9ddceae5f957c68169a6139937b528c74b7be11eb395bafaba1290039c71006e`. Use `build(source_female_glb, animation_glb, 'player/models/human_female.glb')` from the preparation module to generate the second rig.

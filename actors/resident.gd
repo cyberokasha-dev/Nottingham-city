@@ -1,0 +1,284 @@
+extends CharacterBody3D
+## Autonomous residents share the player's rig, furniture slots and melee rules.
+var person_name := "Resident"
+var variant := 1
+var female := false
+var manager: Node3D
+var home: Node3D
+var current_house: Node3D
+var visual: Node3D
+var collider: CollisionShape3D
+var bubble: Label3D
+var state := "idle"
+var resting := ""
+var destination_name := "courtyard"
+var route := PackedVector3Array()
+var wait_time := 1.0
+var speech_time := 0.0
+var action_time := 0.0
+var health := 100
+var guarding := false
+var driving := false
+var opponent: CharacterBody3D
+var combat_time := 0.0
+var attack_delay := -1.0
+var travel_count := 0
+var conversations := 0
+var stuck_time := 0.0
+var last_position := Vector3.ZERO
+var wants_home := false
+var house_transition := false
+var jump_time := 0.0
+
+func _ready() -> void:
+	add_to_group("people")
+	add_to_group("residents")
+	collider = CollisionShape3D.new()
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.28
+	shape.height = 1.8
+	collider.shape = shape
+	collider.position.y = 0.9
+	add_child(collider)
+	visual = preload("res://actors/human.gd").new()
+	add_child(visual)
+	visual.setup(variant,female)
+	bubble = Label3D.new()
+	bubble.position.y = 2.15
+	bubble.font_size = 28
+	bubble.pixel_size = 0.005
+	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	bubble.outline_size = 8
+	bubble.visibility_range_end = 28
+	add_child(bubble)
+	last_position = global_position
+	wait_time = 2 + variant * 0.17
+
+func say(text: String, duration := 4.0) -> void:
+	bubble.text = person_name + "\n" + text
+	speech_time = duration
+
+func talk_to(person: CharacterBody3D) -> void:
+	if resting != "" or house_transition or combat_time > 0:
+		return
+	state = "talk"
+	wait_time = 4.0
+	velocity = Vector3.ZERO
+	visual.face(person.global_position-global_position,1)
+	visual.play("talk")
+	conversations += 1
+	var lines := ["Good morning! Lovely day for a walk.","I'm heading to the " + destination_name + ".","Have you visited the park?","I'll stop at home after this."]
+	say(lines[(travel_count+variant)%lines.size()])
+
+func _physics_process(delta: float) -> void:
+	speech_time = maxf(0,speech_time-delta)
+	if speech_time <= 0:
+		bubble.text = person_name if global_position.distance_to(manager.player.global_position) < 8 else ""
+	action_time = maxf(0,action_time-delta)
+	jump_time = maxf(0,jump_time-delta)
+	if house_transition:
+		return
+	if resting != "":
+		wait_time -= delta
+		if wait_time <= 0:
+			stand_up()
+		return
+	if state == "recover":
+		wait_time -= delta
+		if wait_time <= 0:
+			health = 100
+			state = "idle"
+			opponent = null
+		return
+	if attack_delay >= 0:
+		attack_delay -= delta
+		if attack_delay < 0:
+			preload("res://actors/combat.gd").strike(self,-visual.global_basis.z,12)
+	if action_time > 0:
+		return
+	if combat_time > 0 and is_instance_valid(opponent):
+		combat_time -= delta
+		var toward: Vector3 = opponent.global_position-global_position
+		visual.face(toward,delta)
+		guarding = fmod(combat_time,2.6) > 1.3
+		if toward.length() > 10 or opponent.driving or opponent.resting != "":
+			combat_time = 0
+			opponent = null
+		elif toward.length() < 1.7:
+			velocity = Vector3.ZERO
+			if guarding:
+				visual.play("heavy_punch")
+				visual.animator.seek(0.14,true)
+				visual.animator.pause()
+			else:
+				visual.play("punch",0.06)
+				action_time = 0.9
+				attack_delay = 0.18
+		else:
+			_move(toward.normalized(),delta,2.3)
+		return
+	guarding = false
+	if state in ["idle","talk"]:
+		wait_time -= delta
+		velocity.x = 0
+		velocity.z = 0
+		if state == "idle":
+			visual.play("idle")
+		_gravity(delta)
+		if wait_time <= 0:
+			if is_instance_valid(current_house):
+				_leave_home()
+			else:
+				manager.next_destination(self)
+		return
+	if route.is_empty():
+		_arrive()
+		return
+	var toward := route[0]-global_position
+	toward.y = 0
+	if toward.length() < 0.55:
+		route.remove_at(0)
+		stuck_time = 0
+		return
+	_move(toward.normalized(),delta,3.2 if variant % 5 == 0 else 1.4 + (variant % 3)*0.13)
+	if global_position.distance_to(last_position) < 0.001:
+		stuck_time += delta
+	else:
+		stuck_time = maxf(0,stuck_time-delta)
+	last_position = global_position
+	if stuck_time > 2:
+		# Try a short sidestep; don't teleport through homes or cars.
+		try_jump()
+		var side := Vector3(-toward.z,0,toward.x).normalized()
+		route.insert(0,global_position+side*1.4)
+		stuck_time = 0
+	if global_position.y < -20:
+		global_position = manager.spawn_point(variant)
+		route.clear()
+
+func _gravity(delta: float) -> void:
+	if not is_on_floor():
+		velocity.y -= 20*delta
+	elif jump_time <= 0:
+		velocity.y = 0
+	move_and_slide()
+
+func _move(direction: Vector3,delta: float,speed: float) -> void:
+	velocity.x = direction.x*speed
+	velocity.z = direction.z*speed
+	_gravity(delta)
+	visual.face(direction,delta)
+	visual.play("jump_air" if jump_time > 0 else ("run" if speed > 2.8 else "walk"))
+
+func go_to(path: PackedVector3Array, place: String) -> void:
+	route = path
+	destination_name = place
+	state = "walk"
+
+func _arrive() -> void:
+	travel_count += 1
+	state = "idle"
+	wait_time = 4+variant%5
+	if wants_home and global_position.distance_to(home.entrance()) < 2:
+		_enter_home()
+	else:
+		for friend in get_tree().get_nodes_in_group("residents"):
+			if friend != self and friend.resting == "" and friend.current_house == current_house and friend.combat_time <= 0 and global_position.distance_to(friend.global_position) < 3:
+				talk_to(friend)
+				friend.talk_to(self)
+				break
+
+func try_rest(action: String) -> bool:
+	if not is_instance_valid(current_house) or resting != "" or not current_house.claim_rest(action,self):
+		return false
+	resting = action
+	global_position = current_house.rest_pose(action)
+	collider.disabled = true
+	velocity = Vector3.ZERO
+	visual.rotation = Vector3(PI/2,current_house.rotation.y+PI,0) if action == "sleep" else Vector3(0,current_house.rotation.y+PI,0)
+	visual.play("idle" if action == "sleep" else "sit",0.0 if action == "sleep" else 0.16)
+	if action == "sleep":
+		visual.animator.seek(0.1,true)
+		visual.animator.pause()
+	wait_time = 12 if action == "sleep" else 8
+	say("Taking a rest.")
+	return true
+
+func stand_up() -> void:
+	if resting == "":
+		return
+	current_house.release_rest(resting,self)
+	global_position = current_house.rest_approach(resting)
+	visual.rotation = Vector3(0,current_house.rotation.y,0)
+	collider.disabled = false
+	resting = ""
+	visual.play("idle")
+	state = "idle"
+	wait_time = 3
+
+func _enter_home() -> void:
+	house_transition = true
+	velocity = Vector3.ZERO
+	collider.disabled = true
+	await home.open_door(true)
+	visual.play("walk")
+	visual.rotation.y = home.rotation.y
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tween.tween_property(self,"global_position",home.inside_point(),0.8)
+	await tween.finished
+	await home.open_door(false)
+	current_house = home
+	house_transition = false
+	collider.disabled = false
+	if not try_rest("sleep" if travel_count % 2 == 0 else "sit"):
+		state = "idle"
+		wait_time = 5
+
+func _leave_home() -> void:
+	house_transition = true
+	collider.disabled = true
+	visual.play("walk")
+	var approach := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	approach.tween_property(self,"global_position",current_house.inside_point(),0.5)
+	await approach.finished
+	await current_house.open_door(true)
+	visual.rotation.y = current_house.rotation.y+PI
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tween.tween_property(self,"global_position",current_house.entrance(),0.8)
+	await tween.finished
+	await current_house.open_door(false)
+	current_house = null
+	wants_home = false
+	house_transition = false
+	collider.disabled = false
+	manager.next_destination(self)
+
+func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
+	if resting != "" or house_transition or state == "recover":
+		return
+	var toward: Vector3 = (attacker.global_position-global_position).normalized()
+	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
+		say("Blocked!",1.0)
+		return
+	health = maxi(0,health-damage)
+	opponent = attacker
+	combat_time = 8
+	state = "fight"
+	attack_delay = -1
+	velocity = Vector3.ZERO
+	visual.play("hit",0.05)
+	action_time = 0.55
+	say("Hey! Stop that.")
+	if health == 0:
+		state = "recover"
+		wait_time = 5
+		combat_time = 0
+		say("I need a moment.",5)
+
+func try_jump() -> bool:
+	if not is_on_floor() or resting != "" or house_transition or action_time > 0:
+		return false
+	velocity.y = 5.0
+	jump_time = 0.5
+	visual.play("jump_start",0.05)
+	return true

@@ -26,6 +26,16 @@ var landing_time := 0.0
 var camera_blend: Camera3D
 var active_house: Node3D
 var entering_house := false
+var resting := ""
+var health := 100
+var guarding := false
+var action_time := 0.0
+var strike_pending := false
+var strike_delay := 0.0
+var strike_damage := 18
+var recovery_time := 0.0
+var rest_stand := Vector3.ZERO
+var rest_tween: Tween
 
 func _ready() -> void:
 	for action in {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}:
@@ -34,6 +44,8 @@ func _ready() -> void:
 			var key := InputEventKey.new()
 			key.physical_keycode = {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}[action]
 			InputMap.action_add_event(action, key)
+	preload("res://actors/controls.gd").bind()
+	add_to_group("people")
 	collider = CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.3
@@ -41,15 +53,10 @@ func _ready() -> void:
 	collider.shape = capsule
 	collider.position.y = 0.9
 	add_child(collider)
-	visual = Node3D.new()
+	visual = preload("res://actors/human.gd").new()
 	add_child(visual)
-	var model := preload("res://player/models/human.glb").instantiate()
-	# glTF character faces +Z; movement and the chase camera use -Z.
-	model.rotation.y = PI
-	visual.add_child(model)
-	animator = model.get_node("AnimationPlayer")
-	for clip in ["idle", "walk", "run", "jump_air", "seated"]:
-		animator.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+	visual.setup(0)
+	animator = visual.animator
 	_play_clip("idle")
 	pivot = Node3D.new()
 	pivot.position.y = 1.4
@@ -77,6 +84,9 @@ func _ready() -> void:
 	prompt.add_theme_constant_override("shadow_offset_x", 2)
 	prompt.add_theme_constant_override("shadow_offset_y", 2)
 	hud.add_child(prompt)
+	var controls := preload("res://actors/controls.gd").new()
+	controls.player = self
+	add_child(controls)
 	if use_home_position:
 		global_position = home_position
 	elif is_instance_valid(vehicle):
@@ -85,7 +95,7 @@ func _ready() -> void:
 		home_position = global_position
 
 func _play_clip(clip: String, blend := 0.16) -> void:
-	if current_clip != clip:
+	if current_clip != clip or not animator.is_playing():
 		current_clip = clip
 		animator.speed_scale = 1.0
 		animator.play(clip, blend)
@@ -97,6 +107,37 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	message_time = maxf(0.0, message_time - delta)
+	if not driving and not transitioning:
+		var devices := Input.get_connected_joypads()
+		if not devices.is_empty():
+			var look := Vector2(Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_X),Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_Y))
+			if look.length() > 0.18:
+				yaw -= look.x * delta * 2.2
+				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
+	action_time = maxf(0,action_time-delta)
+	var recovering := recovery_time > 0
+	recovery_time = maxf(0,recovery_time-delta)
+	if recovering and recovery_time <= 0:
+		health = 100
+		_play_clip("idle")
+		_notify("Recovered — take a rest or block the next punch.")
+	if strike_pending:
+		strike_delay -= delta
+		if strike_delay <= 0:
+			strike_pending = false
+			preload("res://actors/combat.gd").strike(self,-visual.global_basis.z,strike_damage)
+	if resting != "":
+		pivot.rotation = Vector3(pitch,yaw,0)
+		prompt.text = ("Sleeping — ○ G / △ E: wake up" if resting == "sleep" else "Sitting — ○ G / △ E: stand up")
+		if resting == "sleep":
+			health = mini(100,health+1)
+			visual.position.y = sin(Time.get_ticks_msec()*0.0018)*0.008
+		if Input.is_action_just_pressed("cancel_action") or Input.is_action_just_pressed("interact"):
+			stand_up()
+		return
+	if recovery_time > 0:
+		prompt.text = "Recovering…"
+		return
 	if transitioning:
 		prompt.text = "Opening the house…" if entering_house else ("Getting into the vehicle…" if not driving else "Getting out…")
 		return
@@ -104,8 +145,14 @@ func _physics_process(delta: float) -> void:
 		if driving:
 			try_exit()
 		else:
+			var furniture := nearest_furniture()
+			var person := nearest_person()
 			var house := nearest_house()
-			if is_instance_valid(house):
+			if furniture != "":
+				try_rest(furniture)
+			elif is_instance_valid(person):
+				person.talk_to(self)
+			elif is_instance_valid(house):
 				try_house(house)
 			else:
 				try_enter()
@@ -113,19 +160,29 @@ func _physics_process(delta: float) -> void:
 		return
 	if driving:
 		global_position = vehicle.global_position
-		prompt.text = vehicle.display_name + " — E: get out (stop first)\nArrows/WASD: drive · Space: brake · C: camera"
+		prompt.text = vehicle.display_name + " — △ E: get out (stop first)\nWASD / left stick: drive · R2: accelerate · L2: reverse · ✕ Space: brake · C / R3: camera"
 	else:
 		pivot.rotation.x = lerpf(pivot.rotation.x, pitch, 1.0 - exp(-12.0 * delta))
 		pivot.rotation.y = lerp_angle(pivot.rotation.y, yaw, 1.0 - exp(-12.0 * delta))
+		guarding = Input.is_action_pressed("guard") and action_time <= 0
+		if Input.is_action_just_pressed("punch"):
+			try_punch(false)
+		elif Input.is_action_just_pressed("heavy_punch"):
+			try_punch(true)
 		var input := Input.get_vector("walk_left", "walk_right", "walk_forward", "walk_back")
 		var direction := Basis(Vector3.UP, yaw) * Vector3(input.x, 0, input.y)
 		var speed := RUN_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
+		if action_time > 0 or guarding:
+			speed = 0.5
+			visual.rotation.y = yaw
+		if Input.is_action_pressed("look_modifier"):
+			speed *= 0.5
 		velocity.x = move_toward(velocity.x, direction.x * speed, 16.0 * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, 16.0 * delta)
 		var jumped := false
 		if not is_on_floor():
 			velocity.y -= 20.0 * delta
-		elif Input.is_action_just_pressed("jump"):
+		elif Input.is_action_just_pressed("jump") and action_time <= 0 and not guarding:
 			velocity.y = 6.0
 			jumped = true
 		move_and_slide()
@@ -136,7 +193,13 @@ func _physics_process(delta: float) -> void:
 		if direction.length_squared() > 0.01:
 			visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-direction.x, -direction.z), 12.0 * delta)
 		var horizontal_speed := Vector2(velocity.x, velocity.z).length()
-		if jumped:
+		if action_time > 0:
+			pass
+		elif guarding:
+			_play_clip("heavy_punch",0.08)
+			animator.seek(0.14,true)
+			animator.pause()
+		elif jumped:
 			_play_clip("jump_start", 0.08)
 		elif not is_on_floor():
 			if current_clip != "jump_start" or animator.current_animation_position > 0.18:
@@ -152,8 +215,14 @@ func _physics_process(delta: float) -> void:
 		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look"
 		var house := nearest_house()
 		vehicle = nearest_vehicle() if not is_instance_valid(active_house) else null
-		if is_instance_valid(house):
-			prompt.text += "\nE: " + ("leave " if house==active_house else "enter ") + house.address
+		var furniture := nearest_furniture()
+		var person := nearest_person()
+		if furniture != "":
+			prompt.text += "\n△ E: " + ("sleep in bed" if furniture == "sleep" else "sit on sofa")
+		elif is_instance_valid(person):
+			prompt.text += "\n△ E: talk to " + person.person_name
+		elif is_instance_valid(house):
+			prompt.text += "\n△ E: " + ("leave " if house==active_house else "enter ") + house.address
 		elif is_instance_valid(vehicle):
 			prompt.text += "\nE: enter " + vehicle.display_name
 		else:
@@ -165,7 +234,7 @@ func _physics_process(delta: float) -> void:
 		prompt.text += "\n" + message
 
 func try_enter() -> bool:
-	if transitioning or driving or is_instance_valid(active_house):
+	if transitioning or driving or resting != "" or action_time > 0 or is_instance_valid(active_house):
 		return false
 	vehicle = nearest_vehicle()
 	if not is_instance_valid(vehicle):
@@ -215,7 +284,7 @@ func nearest_house() -> Node3D:
 	return closest
 
 func try_house(house: Node3D) -> bool:
-	if transitioning or driving or house != nearest_house():
+	if transitioning or driving or resting != "" or action_time > 0 or house != nearest_house():
 		return false
 	transitioning = true
 	entering_house = true
@@ -358,3 +427,86 @@ func _blend_camera(target: Camera3D) -> void:
 func _notify(text: String) -> void:
 	message = text
 	message_time = 3.0
+
+func nearest_furniture() -> String:
+	if not is_instance_valid(active_house):
+		return ""
+	for action in ["sit","sleep"]:
+		if global_position.distance_to(active_house.rest_approach(action)) < 1.8:
+			return action
+	return ""
+
+func try_rest(action: String) -> bool:
+	if transitioning or driving or resting != "" or action_time > 0 or not is_instance_valid(active_house):
+		return false
+	if action != nearest_furniture() or not active_house.claim_rest(action,self):
+		_notify("This place is occupied.")
+		return false
+	resting = action
+	velocity = Vector3.ZERO
+	collider.disabled = true
+	rest_stand = active_house.rest_approach(action)
+	_play_clip("enter",0.1)
+	rest_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel(true)
+	rest_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	rest_tween.tween_property(self,"global_position",active_house.rest_pose(action),0.5)
+	var target_rotation := Vector3(PI/2,active_house.rotation.y+PI,0) if action == "sleep" else Vector3(0,active_house.rotation.y+PI,0)
+	rest_tween.tween_property(visual,"rotation",target_rotation,0.5)
+	rest_tween.finished.connect(func():
+		_play_clip("idle" if action == "sleep" else "sit",0.0 if action == "sleep" else 0.16)
+		if action == "sleep":
+			animator.seek(0.1,true)
+			animator.pause())
+	return true
+
+func stand_up() -> bool:
+	if resting == "":
+		return false
+	if is_instance_valid(rest_tween):
+		rest_tween.kill()
+	active_house.release_rest(resting,self)
+	global_position = rest_stand
+	visual.rotation = Vector3(0,active_house.rotation.y,0)
+	visual.position = Vector3.ZERO
+	velocity = Vector3.ZERO
+	collider.disabled = false
+	resting = ""
+	_play_clip("idle",0.2)
+	return true
+
+func nearest_person() -> CharacterBody3D:
+	var nearest: CharacterBody3D = null
+	var distance := 2.4
+	for person in get_tree().get_nodes_in_group("residents"):
+		var d := global_position.distance_to(person.global_position)
+		if d < distance and person.current_house == active_house and person.resting == "":
+			nearest = person
+			distance = d
+	return nearest
+
+func try_punch(heavy := false) -> bool:
+	if driving or transitioning or resting != "" or action_time > 0 or recovery_time > 0 or not is_on_floor():
+		return false
+	guarding = false
+	visual.rotation.y = yaw
+	_play_clip("heavy_punch" if heavy else "punch",0.05)
+	action_time = 0.85 if heavy else 0.55
+	strike_delay = 0.3 if heavy else 0.18
+	strike_damage = 30 if heavy else 18
+	strike_pending = true
+	return true
+
+func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
+	if driving or transitioning or resting != "" or recovery_time > 0:
+		return
+	var toward: Vector3 = (attacker.global_position-global_position).normalized()
+	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
+		_notify("Blocked")
+		return
+	health = maxi(0,health-damage)
+	strike_pending = false
+	_play_clip("hit",0.06)
+	action_time = 0.5
+	if health == 0:
+		recovery_time = 3.0
+		_notify("Recovering…")

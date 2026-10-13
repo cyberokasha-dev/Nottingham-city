@@ -32,6 +32,8 @@ func _draw() -> void:
 		draw_rect(Rect2(point(house.global_position)-Vector2(2,3),Vector2(4,6)),Color("cf9778"))
 	for vehicle in fleet:
 		draw_circle(point(vehicle.global_position),2.2,Color("dfe8f0"))
+	for resident in get_tree().get_nodes_in_group("residents"):
+		draw_circle(point(resident.global_position),1.8,Color("7ae1ba"))
 	if is_instance_valid(player):
 		var pos := point(player.global_position)
 		draw_circle(pos,4,Color("ffdd75"))

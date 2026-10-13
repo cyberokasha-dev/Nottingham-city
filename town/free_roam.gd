@@ -6,6 +6,7 @@ var town: Node3D
 var fleet: Array[VehicleBody3D] = []
 var player: CharacterBody3D
 var city: Node3D
+var population: Node3D
 
 func _ready() -> void:
 	town = Node3D.new()
@@ -43,6 +44,10 @@ func _ready() -> void:
 	player.use_home_position = true
 	player.home_position = Vector3(3,LOT_Y+0.12,38)
 	town.add_child(player)
+	population = preload("res://actors/population.gd").new()
+	population.city = city
+	population.player = player
+	town.add_child(population)
 	var map_layer := CanvasLayer.new()
 	town.add_child(map_layer)
 	var map := preload("res://town/city_map.gd").new()
@@ -68,7 +73,7 @@ func _build_courtyard() -> void:
 	mesh.size = Vector3(48,0.22,48)
 	surface.mesh = mesh
 	surface.material_override = tarmac
-	surface.position = Vector3(0,LOT_Y-0.11,46)
+	surface.position = Vector3(0,LOT_Y-0.08,46)
 	town.add_child(surface)
 	var ground := StaticBody3D.new()
 	var collision := CollisionShape3D.new()
@@ -82,8 +87,8 @@ func _build_courtyard() -> void:
 	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	for z in [34,55]:
 		for x in [-17.5,-10.5,-3.5,3.5,10.5,17.5]:
-			_marking(Vector3(x,LOT_Y+0.012,z),Vector3(0.075,0.015,7.5 if z==34 else 13.0),paint)
-	_marking(Vector3(0,LOT_Y+0.012,30),Vector3(35,0.015,0.075),paint)
+			_marking(Vector3(x,LOT_Y+0.045,z),Vector3(0.075,0.015,7.5 if z==34 else 13.0),paint)
+	_marking(Vector3(0,LOT_Y+0.045,30),Vector3(35,0.015,0.075),paint)
 	var sign := Label3D.new()
 	sign.text = "NOTTINGHAM CITY\nVEHICLE COURTYARD"
 	sign.font_size = 48

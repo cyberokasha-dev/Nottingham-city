@@ -7,6 +7,7 @@ var front: Node3D
 var door: Node3D
 var interior: Node3D
 var occupied := false
+var rest_users := {}
 
 func _ready() -> void:
 	add_to_group("enterable_houses")
@@ -155,3 +156,25 @@ func _box(parent: Node3D,pos: Vector3,size: Vector3,material: Material,solid := 
 		body.add_child(collision)
 		mesh.add_child(body)
 	return mesh
+
+# Approach positions have clearance beside the furniture, not on its collider.
+func rest_approach(action: String) -> Vector3:
+	return to_global(Vector3(0,0.14,-3.8) if action == "sleep" else Vector3(-1.0,0.14,1.15))
+
+func rest_pose(action: String) -> Vector3:
+	return to_global(Vector3(-1.7,1.05,-2.65) if action == "sleep" else Vector3(-2.9,0.30,0.91))
+
+func claim_rest(action: String, actor: Node3D) -> bool:
+	if action not in ["sit","sleep"]:
+		return false
+	if is_instance_valid(rest_users.get(action)):
+		return false
+	rest_users[action] = actor
+	if not is_instance_valid(interior):
+		_build_interior()
+		interior.visible = occupied
+	return true
+
+func release_rest(action: String, actor: Node3D) -> void:
+	if rest_users.get(action) == actor:
+		rest_users.erase(action)

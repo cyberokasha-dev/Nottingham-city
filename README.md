@@ -1,10 +1,14 @@
 # Bajinka: Nottingham City
 
-## Milestone 5: connected city and enterable homes
+## Milestone 6: human residents, home actions and controller controls
 
 The game opens directly into a vehicle courtyard with the animated human standing on foot. The car selection screen is removed. Six vehicles coexist: the gold Aurora concept car, sports sedan, luxury SUV, city van, tow truck and articulated truck. Walk to a vehicle and press E; the nearby vehicle's name appears in the prompt. You can drive, stop, get out and switch to another vehicle. Other vehicles stay parked.
 
 The Aurora is an original Cybercab-inspired game model, with a gold body, dark panoramic canopy, covered wheels and light bars. The other new cars use Kenney's CC0 Car Kit. The trucks retain the functional towing and articulated trailer from the Godot Truck Town demo, with refreshed surface, wheel and light details. The old demonstration hills and terrain are replaced by an original compact city layout: 11 connected streets, 30 level junctions, pavements, crossings, two parks and 68 residential houses. It is a fictional game city, rather than a geographic reconstruction of Nottingham.
+
+Twelve named residents now share the human animation rig. Six use the female base mesh, six the male base mesh; skin tones, clothing, body proportions, eye detail and tied/short hair distinguish them. They walk or jog between the courtyard, park areas, neighbourhood and shops, pause for scripted text conversations, return home and sit or sleep. Green mini-map dots show residents. These are local state-machine routines, with no voice audio or generative AI service. Named destinations and the sidewalk graph are ready for a future bus/taxi system; public transport is not implemented yet.
+
+Punches use a timed contact frame, a short reach and facing cone, and a wall visibility check. Residents react, defend themselves, and recover after a short pause. The player can block a punch from the front, loses health when hit and recovers at zero health. Sleeping restores health. There are no weapons or gore.
 
 ### Play in Chrome
 
@@ -17,13 +21,19 @@ The `.github/workflows/web.yml` workflow imports with Godot 4.4.1, checks the co
 Use the mini-map at the top right to find roads, houses and the parked fleet; the yellow marker is the player. Walk up to a house entrance and press E to open the door and enter. Interiors contain a living area, kitchen, bed and furniture with collision. Walk back toward the front door and press E to leave. A cutaway roof and elevated camera keep the human visible indoors. Every home has its own address and entrance; homes share the initial floor plan.
 
 - On foot: WASD walks, Shift runs, Space jumps. Hold the right mouse button and drag to look around.
-- E: enter a nearby house door or the nearest vehicle. A wall between you and the vehicle blocks car entry.
+- △ / E: use a nearby door or vehicle, talk to a resident, sit beside a sofa or sleep beside a bed.
+- ○ / G: stand up or wake up. E also leaves a resting pose. Furniture slots prevent two people using the same seat or bed.
+- □ / F: light punch; R1 / R: heavy punch; L1 / Q: hold to guard.
+- ✕ / Space: jump on foot, handbrake while driving.
+- L2 / Z: slow focused movement on foot; R2 / V: alternate punch input.
+- Gamepad: left stick moves, right stick looks, L3 sprints. When driving, R2 accelerates, L2 reverses and R3 cycles the camera.
+- The on-screen PlayStation-style buttons are clickable/touchable. Keyboard movement remains WASD; gamepad support needs physical-device testing.
 - Driving: WASD or arrow keys steer, accelerate and reverse. Space applies the brake.
 - E while stopped: get out when there is clear ground beside the vehicle.
 - C: cycle exterior, interior and overhead driving cameras.
 - U: cycle speed units.
 
-The Quaternius human has a face, arms, hands, articulated fingers, hair, fitted clothes and shoes. Idle, walking, running, jumping and landing blend automatically. Entry approaches a clear side and blends sitting motion and cameras; exit blends standing motion back to walking. Doors are not animated and the driver is hidden inside the current vehicle interiors.
+The Quaternius human has a face, arms, hands, articulated fingers, hair, fitted clothes and shoes. Idle, walking, running, jumping and landing blend automatically. New seated, talking, jab, cross and hit clips animate home and combat actions. Entry approaches a clear side and blends sitting motion and cameras; exit blends standing motion back to walking. Vehicle doors are not animated and the driver is hidden inside the current vehicle interiors.
 
 ### Run in Godot
 
@@ -35,7 +45,7 @@ The Compatibility renderer reduces GPU requirements. Native rendered city, exter
 
 ### Validation
 
-The automated Godot smoke test launches the actual main scene, verifies a visible human standing on the ground, checks all six nearby vehicles, walking and jumping, nearest-vehicle selection, input locking during transitions, active-vehicle acceleration, unoccupied-vehicle isolation, moving-exit prevention and safe exits back to walking. City checks verify all 30 junctions are level, all 68 houses register entrances, representative houses open and close correctly, the human can walk indoors, solid walls block passage, and exit restores the outside camera and collisions. Browser export is checked separately. The original Godot Truck Town import is pinned to demo release `4.2-31d1c0c` (commit `31d1c0c1122717b3ad74aeb94255bc38def52747`).
+The automated Godot smoke test launches the actual main scene, verifies a visible human standing on the ground, checks all six nearby vehicles, walking and jumping, nearest-vehicle selection, input locking during transitions, active-vehicle acceleration, unoccupied-vehicle isolation, moving-exit prevention and safe exits back to walking. Resident/action checks verify independent movement, paired conversations, timed punch damage, cooldown, facing guard, range limits, shared furniture occupancy, sitting, sleeping and safe waking. City checks verify all 30 junctions are level, all 68 houses register entrances, representative houses open and close correctly, the human can walk indoors, solid walls block passage, and exit restores the outside camera and collisions. Browser export is checked separately. The original Godot Truck Town import is pinned to demo release `4.2-31d1c0c` (commit `31d1c0c1122717b3ad74aeb94255bc38def52747`).
 
 ### Asset licenses
 

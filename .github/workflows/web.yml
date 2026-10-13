@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           godot --headless --editor --path . --import 2>&1 | tee /tmp/import.log
           if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/import.log; then exit 1; fi
-      - name: Check city, house interiors and all six vehicles
+      - name: Check residents, combat, furniture, city and all six vehicles
         shell: bash
         run: |
           set -euo pipefail

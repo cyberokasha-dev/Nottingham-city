@@ -63,6 +63,7 @@ def build(model_path, animation_path, output):
 
     # Color fitted garments on the existing smooth, skinned human topology.
     # Hands and fingers retain skin color; shoes, eyes and hair have separate colors.
+    female = "female" in str(model_path).lower()
     skin = [0.34, 0.16, 0.075, 1]
     shirt = [0.025, 0.19, 0.48, 1]
     trousers = [0.025, 0.035, 0.055, 1]
@@ -74,10 +75,10 @@ def build(model_path, animation_path, output):
         for primitive in mesh['primitives']:
             positions = values(doc, binary, primitive['attributes']['POSITION'])
             colors = np.tile(skin, (len(positions), 1))
-            if mesh['name'] == 'Face':
+            if mesh['name'] in ['Face', 'Eyebrows']:
                 colors[:] = [0.018, 0.012, 0.009, 1]
-            elif mesh['name'] == 'Face.001':
-                colors[:] = [0.045, 0.034, 0.018, 1]
+            elif mesh['name'] in ['Face.001', 'Eyes']:
+                colors[:] = [0.82, 0.84, 0.80, 1]
             else:
                 y = positions[:, 1]
                 joints = values(doc, binary, primitive['attributes']['JOINTS_0'])
@@ -102,7 +103,7 @@ def build(model_path, animation_path, output):
             x = math.sin(phi) * math.cos(theta)
             y = math.cos(phi)
             z = math.sin(phi) * math.sin(theta)
-            hair_positions.append([x * 0.091, 1.757 + y * 0.063, -0.006 + z * 0.079])
+            hair_positions.append([x * 0.091, (1.714 if female else 1.757) + y * 0.063, -0.006 + z * 0.079])
             normal = np.array([x / 0.091, y / 0.063, z / 0.079])
             hair_normals.append((normal / np.linalg.norm(normal)).tolist())
     for row in range(rows):
@@ -160,6 +161,14 @@ def build(model_path, animation_path, output):
         doc['nodes'].append({'name': name, 'mesh': mesh_index, 'skin': 0})
         doc['nodes'][doc['scenes'][0]['nodes'][0]]['children'].append(node_index)
 
+    # Eye whites come from the authored face topology; add small skinned pupils.
+    for x in [-0.029, 0.029]:
+        add_shoe('Pupil', np.array([x, 1.656 if female else 1.705, 0.077 if female else 0.082]),
+                 np.array([0.007, 0.009, 0.005]), 'Head', [0.025, 0.035, 0.028, 1])
+    if female:
+        add_shoe('Tied hair', np.array([0, 1.66, -0.098]),
+                 np.array([0.047, 0.103, 0.045]), 'Head', [0.018, 0.012, 0.009, 1])
+
     for side, x in [('l', 0.131), ('r', -0.131)]:
         add_shoe('Sneaker_' + side, np.array([x, 0.048, -0.009]),
                  np.array([0.069, 0.064, 0.16]), 'foot_' + side, [0.027, 0.035, 0.05, 1])
@@ -169,7 +178,9 @@ def build(model_path, animation_path, output):
     target_nodes = {n.get('name'): i for i, n in enumerate(doc['nodes'])}
     clips = {'Idle_Loop': 'idle', 'Walk_Loop': 'walk', 'Sprint_Loop': 'run',
              'Jump_Start': 'jump_start', 'Jump_Loop': 'jump_air', 'Jump_Land': 'land',
-             'Sitting_Enter': 'enter', 'Sitting_Exit': 'exit', 'Driving_Loop': 'seated'}
+             'Sitting_Enter': 'enter', 'Sitting_Exit': 'exit', 'Driving_Loop': 'seated', 'Sitting_Idle_Loop': 'sit',
+             'Idle_Talking_Loop': 'talk', 'Punch_Jab': 'punch',
+             'Punch_Cross': 'heavy_punch', 'Hit_Chest': 'hit'}
     doc['animations'] = []
     for animation in source['animations']:
         if animation['name'] not in clips:

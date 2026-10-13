@@ -12,6 +12,15 @@ func check_world():
         return
     var player = game.player
     var fleet = game.fleet
+    var resident_starts = {}
+    for resident in game.population.residents:
+        resident_starts[resident] = resident.global_position
+    if not check(game.population.residents.size() == 12 and get_nodes_in_group("people").size() == 13, "Twelve rigged autonomous neighbours"):
+        return
+    if not check(game.population.residents[0].conversations > 0 and game.population.residents[1].conversations > 0, "Neighbours stop and talk together"):
+        return
+    if not check(InputMap.action_get_events("interact").size() >= 2 and InputMap.has_action("guard"), "Keyboard and gamepad actions coexist"):
+        return
     if not check(fleet.size() == 6 and get_nodes_in_group("driveable_vehicles").size() == 6, "Six enterable vehicles coexist"):
         return
     if not check(not player.driving and player.camera.current and player.visual.visible and player.is_on_floor(), "Spawn standing on foot with the human visible"):
@@ -91,6 +100,21 @@ func check_world():
             await physics_frame
         if not check(player.active_house == house and house.occupied and not house.roof.visible and is_instance_valid(house.interior) and player.is_on_floor(), "House interior is reachable and furnished"):
             return
+        for action in ["sit","sleep"]:
+            player.global_position = house.rest_approach(action)
+            player.velocity = Vector3.ZERO
+            if not check(player.try_rest(action) and player.resting == action and player.collider.disabled, "Use house furniture: " + action):
+                return
+            if not check(not house.claim_rest(action,game.population.residents[0]) and not player.try_punch(), "Furniture occupancy and resting prevent overlapping actions"):
+                return
+            for i in range(15):
+                await physics_frame
+            if not check(player.stand_up() and player.resting == "" and not player.collider.disabled, "Stand or wake restores control"):
+                return
+            for i in range(20):
+                await physics_frame
+            if not check(player.is_on_floor(), "Safe standing position beside furniture"):
+                return
         if not check(not player.try_enter(), "Cannot enter a parked car from inside a house"):
             return
         var wall_ray = PhysicsRayQueryParameters3D.create(house.to_global(Vector3(0,1,0)),house.to_global(Vector3(7,1,0)))
@@ -114,6 +138,115 @@ func check_world():
             await physics_frame
         if not check(not is_instance_valid(player.active_house) and not house.occupied and house.roof.visible and not player.collider.disabled and player.is_on_floor(), "Exit restores exterior camera and collisions"):
             return
+    var moving_residents = 0
+    for resident in resident_starts:
+        if resident.global_position.distance_to(resident_starts[resident]) > 2:
+            moving_residents += 1
+    if not check(moving_residents >= 8, "Residents move independently along their routines"):
+        return
+    # Isolate one resident for repeatable real strike timing and guard tests.
+    var target = game.population.residents[0]
+    for resident in game.population.residents:
+        resident.set_physics_process(false)
+    target.current_house = null
+    target.resting = ""
+    target.house_transition = false
+    target.state = "idle"
+    target.health = 100
+    target.guarding = false
+    player.global_position = Vector3(22,-4.98,45)
+    player.velocity = Vector3.ZERO
+    player.yaw = 0
+    for i in range(20):
+        await physics_frame
+    target.global_position = player.global_position + Vector3(0,0,-1.3)
+    if not check(player.try_punch() and not player.try_punch(), "Punch starts with cooldown"):
+        return
+    for i in range(30):
+        await physics_frame
+    if not check(target.health == 82, "Timed punch deals damage once inside reach"):
+        return
+    for i in range(60):
+        await physics_frame
+    target.health = 100
+    target.guarding = true
+    target.visual.rotation.y = PI
+    player.try_punch(true)
+    for i in range(110):
+        await physics_frame
+    if not check(target.health == 100, "Facing guard blocks heavy punch"):
+        return
+    target.guarding = false
+    target.global_position += Vector3(0,0,-4)
+    player.try_punch()
+    for i in range(80):
+        await physics_frame
+    if not check(target.health == 100, "Punch cannot hit a distant resident"):
+        return
+    target.global_position = player.global_position+Vector3(0,0,-1)
+    player.guarding = true
+    player.visual.rotation.y = 0
+    var health_before = player.health
+    player.receive_hit(target,18)
+    if not check(player.health == health_before, "Player can block an incoming punch"):
+        return
+    player.guarding = false
+    player.receive_hit(target,18)
+    if not check(player.health == health_before-18, "Incoming hit affects player health"):
+        return
+    # A physical wall blocks a strike even when both people are within reach.
+    var barrier = StaticBody3D.new()
+    var barrier_shape = CollisionShape3D.new()
+    var barrier_box = BoxShape3D.new()
+    barrier_box.size = Vector3(3,3,0.1)
+    barrier_shape.shape = barrier_box
+    barrier.add_child(barrier_shape)
+    barrier.position = player.global_position+Vector3(0,1,-0.5)
+    game.town.add_child(barrier)
+    target.health = 100
+    await physics_frame
+    preload("res://actors/combat.gd").strike(player,Vector3.FORWARD,18)
+    if not check(target.health == 100, "Walls block short range strikes"):
+        return
+    barrier.queue_free()
+    await physics_frame
+    target.opponent = player
+    target.combat_time = 5
+    target.action_time = 0
+    target.state = "fight"
+    target.set_physics_process(true)
+    var before_counter = player.health
+    for i in range(360):
+        await physics_frame
+    if not check(player.health < before_counter, "Resident defends itself with an animated counter punch"):
+        return
+    target.set_physics_process(false)
+    target.combat_time = 0
+    target.attack_delay = -1
+    target.current_house = game.city.houses[3]
+    if not check(target.try_rest("sleep") and target.resting == "sleep", "Residents share bed actions"):
+        return
+    target.stand_up()
+    if not check(target.resting == "" and not target.collider.disabled, "Residents wake and resume control"):
+        return
+    target.current_house = null
+    target.combat_time = 0
+    target.action_time = 0
+    target.attack_delay = -1
+    target.opponent = null
+    target.wants_home = true
+    target.travel_count = 3
+    target.global_position = target.home.entrance()
+    target.set_physics_process(true)
+    target._arrive()
+    for i in range(200):
+        await physics_frame
+    if not check(target.current_house == target.home and target.resting == "sleep", "Resident enters home and chooses bed from routine"):
+        return
+    for i in range(2100):
+        await physics_frame
+    if not check(target.current_house == null and target.resting == "" and not target.house_transition and not target.collider.disabled and target.state == "walk", "Resident wakes, exits home and walks to next place"):
+        return
     for x in game.city.ROAD_X:
         for z in game.city.ROAD_Z:
             var ray = PhysicsRayQueryParameters3D.create(Vector3(x,10,z),Vector3(x,-20,z))
@@ -125,7 +258,7 @@ func check_world():
     await create_timer(0.1).timeout
     game.queue_free()
     await process_frame
-    print("SMOKE_OK: flat connected city, six vehicles, 68 houses, interior walking and safe enter/exit flows")
+    print("SMOKE_OK: city, fleet, houses, residents, dialogue, timed combat, guard, furniture and gamepad mappings")
     call_deferred("quit")
 
 func finish_transition(player):
