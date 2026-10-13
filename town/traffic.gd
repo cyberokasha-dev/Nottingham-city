@@ -38,10 +38,10 @@ func _ready() -> void:
 					lamps.append(lamp)
 				signals.append({"vertical":vertical,"lamps":lamps})
 	for i in range(36):
-		var vertical := i%2==0
-		var lane := (i/2)%6 if vertical else (i/2)%5
-		var direction := 1.0 if i%4<2 else -1.0
-		var offset := -2.8 if direction>0 else 2.8
+		var vertical: bool = i % 2 == 0
+		var lane: int = (i / 2) % 6 if vertical else (i / 2) % 5
+		var direction: float = 1.0 if i % 4 < 2 else -1.0
+		var offset: float = -2.8 if direction > 0 else 2.8
 		var car := Node3D.new()
 		var shell := MeshInstance3D.new()
 		var box := BoxMesh.new()
@@ -71,12 +71,12 @@ func _process(delta: float) -> void:
 		var distance: float = item.distance
 		var speed: float = item.speed
 		var crossing: float = 10000.0
-		var roads: Array = ROAD_Z if vertical else ROAD_X
+		var roads: Array = Array(ROAD_Z) if vertical else Array(ROAD_X)
 		for road in roads:
 			var ahead: float = (float(road)-distance)*direction
 			if ahead>0.0 and ahead<crossing:
 				crossing = ahead
-		var green := _green(vertical)
+		var green: bool = _green(vertical)
 		if not green and crossing>5.0 and crossing<12.0:
 			speed = 0.0
 		elif not green and crossing>=0.0 and crossing<=5.0:
@@ -104,8 +104,8 @@ func _update_lamps() -> void:
 	for signal in signals:
 		var vertical: bool = signal.vertical
 		var green := _green(vertical)
-		var amber := (clock>=10.0 and clock<12.0) if vertical else (clock>=22.0)
-		var colors := [Color.RED if not green and not amber else Color("391616"),Color.YELLOW if amber else Color("39341b"),Color.GREEN if green else Color("18311c")]
+		var amber: bool = (clock>=10.0 and clock<12.0) if vertical else (clock>=22.0)
+		var colors: Array[Color] = [Color.RED if not green and not amber else Color("391616"),Color.YELLOW if amber else Color("39341b"),Color.GREEN if green else Color("18311c")]
 		for i in range(3):
 			var mat := StandardMaterial3D.new()
 			mat.albedo_color = colors[i]
