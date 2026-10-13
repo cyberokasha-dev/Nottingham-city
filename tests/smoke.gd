@@ -15,7 +15,7 @@ func check_world():
     var resident_starts = {}
     for resident in game.population.residents:
         resident_starts[resident] = resident.global_position
-    if not check(game.population.residents.size() == 12 and get_nodes_in_group("people").size() == 13, "Twelve rigged autonomous neighbours"):
+    if not check(game.population.residents.size() == 12 and get_nodes_in_group("people").size() == 16, "Twelve rigged autonomous neighbours"):
         return
     if not check(game.population.residents[0].conversations > 0 and game.population.residents[1].conversations > 0, "Neighbours stop and talk together"):
         return

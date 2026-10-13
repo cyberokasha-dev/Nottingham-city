@@ -13,6 +13,7 @@ import wave
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TEXT = (ROOT / 'actors/speech.gd').read_text()
 LINES = dict(re.findall(r'"([a-z_]+)":"([^"\n]+)"', TEXT))
+LINES.update(json.loads((ROOT/'actors/voices/dialogue-source.json').read_text()))
 
 with tempfile.TemporaryDirectory() as task_dir:
     temp = pathlib.Path(task_dir)
@@ -22,7 +23,7 @@ with tempfile.TemporaryDirectory() as task_dir:
                     for key, text in LINES.items()]
         subprocess.run([sys.argv[1], '--model', str(pathlib.Path(sys.argv[2]) / (voice+'.onnx')),
                         '--json-input'], input='\n'.join(json.dumps(r) for r in requests)+'\n',
-                        text=True, check=True, timeout=240)
+                        text=True, check=True, timeout=360)
         combined = temp / (voice+'.wav')
         frames = bytearray()
         segments = {}

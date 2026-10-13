@@ -38,7 +38,7 @@ func _ready():
 
 
 func _input(event):
-	if event.is_action_pressed(&"cycle_camera"):
+	if current and event.is_action_pressed(&"cycle_camera"):
 		camera_type = wrapi(camera_type + 1, 0, CameraType.MAX) as CameraType
 		update_camera()
 

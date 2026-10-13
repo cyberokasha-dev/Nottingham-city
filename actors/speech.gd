@@ -13,6 +13,7 @@ const LINES := {
 	"bye":"Take care. I'll see you later!"
 }
 var actor: CharacterBody3D
+const SCENE_LINES = preload("res://actors/dialogue_data.gd")
 var viewer: Node3D
 var voice_set := "alba"
 var remaining := 0.0
@@ -28,17 +29,17 @@ var muted := false
 
 func _ready() -> void:
 	voice = AudioStreamPlayer.new()
-	voice.pitch_scale = 0.96+(variant%3)*0.025
+	voice.pitch_scale = float(actor.profile.voice_pitch) if "profile" in actor and actor.profile.has("voice_pitch") else 0.96+(variant%3)*0.025
 	add_child(voice)
 	voice.finished.connect(_release_slot)
 	catalog = preload("res://actors/voices/catalog.gd").BANKS[voice_set]
 	voice.stream = load("res://actors/voices/"+voice_set+".ogg")
 
 static func text_for(key: String) -> String:
-	return LINES.get(key,"")
+	return LINES.get(key,SCENE_LINES.LINES.get(key,""))
 
 func speak(key: String, priority := false) -> bool:
-	if key not in LINES or muted or (actor.dead and key != "awake"):
+	if (key not in LINES and key not in SCENE_LINES.LINES) or muted or (actor.dead and key != "awake"):
 		return false
 	if is_instance_valid(viewer) and actor.global_position.distance_to(viewer.global_position) > 18:
 		return false
@@ -80,3 +81,14 @@ func _release_slot() -> void:
 
 func _exit_tree() -> void:
 	_release_slot()
+
+func stop() -> void:
+	voice.stop()
+	_release_slot()
+
+func duration_for(key: String) -> float:
+	return float(catalog.get(key,{"duration":2.0}).duration)/voice.pitch_scale
+
+func event(event_name: String) -> void:
+	if "profile" in actor:
+		speak("event_"+actor.profile.name.to_lower()+"_"+event_name,true)

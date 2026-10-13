@@ -43,6 +43,12 @@ var hit_push := Vector3.ZERO
 var hurt_time := 0.0
 var sleep_healing := 0.0
 var dialogue: Node3D
+var profile := {"name":"Muhammad", "variant":0, "female":false, "model":"muhammad"}
+var controlled := true
+var party: Node
+var hud: CanvasLayer
+var controls: CanvasLayer
+var folded_arms := false
 
 func _ready() -> void:
 	for action in {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}:
@@ -62,10 +68,10 @@ func _ready() -> void:
 	add_child(collider)
 	visual = preload("res://actors/human.gd").new()
 	add_child(visual)
-	visual.setup(0)
+	visual.setup(profile.variant,profile.female,profile.model)
 	dialogue = preload("res://actors/speech.gd").new()
 	dialogue.actor = self
-	dialogue.voice_set = "joe"
+	dialogue.voice_set = "alba" if profile.female else "joe"
 	add_child(dialogue)
 	animator = visual.animator
 	_play_clip("idle")
@@ -81,12 +87,13 @@ func _ready() -> void:
 	camera.near = 0.1
 	camera.fov = 60.0
 	arm.add_child(camera)
-	camera.make_current()
+	if controlled:
+		camera.make_current()
 	camera_blend = Camera3D.new()
 	camera_blend.set_as_top_level(true)
 	camera_blend.near = 0.1
 	add_child(camera_blend)
-	var hud := CanvasLayer.new()
+	hud = CanvasLayer.new()
 	add_child(hud)
 	prompt = Label.new()
 	prompt.position = Vector2(20, 70)
@@ -95,9 +102,11 @@ func _ready() -> void:
 	prompt.add_theme_constant_override("shadow_offset_x", 2)
 	prompt.add_theme_constant_override("shadow_offset_y", 2)
 	hud.add_child(prompt)
-	var controls := preload("res://actors/controls.gd").new()
+	controls = preload("res://actors/controls.gd").new()
 	controls.player = self
 	add_child(controls)
+	hud.visible = controlled
+	controls.visible = controlled
 	if use_home_position:
 		global_position = home_position
 	elif is_instance_valid(vehicle):
@@ -112,13 +121,15 @@ func _play_clip(clip: String, blend := 0.16) -> void:
 		animator.play(clip, blend)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not controlled or (is_instance_valid(party) and party.wheel.visible):
+		return
 	if not driving and not transitioning and event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		yaw -= event.relative.x * 0.005
 		pitch = clampf(pitch - event.relative.y * 0.005, -1.15, -0.75) if is_instance_valid(active_house) else clampf(pitch - event.relative.y * 0.005, -1.0, 0.3)
 
 func _physics_process(delta: float) -> void:
 	message_time = maxf(0.0, message_time - delta)
-	if not driving and not transitioning:
+	if controlled and not driving and not transitioning and not (is_instance_valid(party) and party.wheel.visible):
 		var devices := Input.get_connected_joypads()
 		if not devices.is_empty():
 			var look := Vector2(Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_X),Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_Y))
@@ -151,6 +162,30 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		prompt.text = "Hit! Health %d / 100" % health
 		return
+	if not controlled:
+		if resting == "":
+			velocity.x = 0
+			velocity.z = 0
+			if not is_on_floor():
+				velocity.y -= 20*delta
+			move_and_slide()
+			_play_clip("idle")
+		return
+	if is_instance_valid(party) and party.wheel.visible:
+		velocity.x = 0
+		velocity.z = 0
+		if not is_on_floor():
+			velocity.y -= 20*delta
+		move_and_slide()
+		return
+	if is_instance_valid(party) and party.game.conversation.active:
+		velocity = Vector3.ZERO
+		return
+	if animator.has_animation("fold_arms") and Input.is_action_just_pressed("fold_arms") and not driving and not transitioning and resting == "" and action_time <= 0:
+		folded_arms = not folded_arms
+		if folded_arms:
+			dialogue.event("fold")
+		_notify("Arms folded — H to relax" if folded_arms else "Arms relaxed")
 	if strike_pending:
 		strike_delay -= delta
 		if strike_delay <= 0:
@@ -181,9 +216,7 @@ func _physics_process(delta: float) -> void:
 			if furniture != "":
 				try_rest(furniture)
 			elif is_instance_valid(person):
-				dialogue.speak("hello",true)
-				person.talk_to(self,2.1)
-				_notify("You: " + dialogue.text_for("hello"))
+				party.game.conversation.start(person)
 			elif is_instance_valid(house):
 				try_house(house)
 			else:
@@ -192,7 +225,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if driving:
 		global_position = vehicle.global_position
-		prompt.text = vehicle.display_name + " — △ E: get out (stop first)\nWASD / left stick: drive · R2: accelerate · L2: reverse · ✕ Space: brake · C / R3: camera"
+		prompt.text = vehicle.display_name + " — △ E: get out (stop first)\nWASD / left stick: drive · R2: accelerate · L2: reverse · ✕ Space: brake · B / R3: camera"
 	else:
 		pivot.rotation.x = lerpf(pivot.rotation.x, pitch, 1.0 - exp(-12.0 * delta))
 		pivot.rotation.y = lerp_angle(pivot.rotation.y, yaw, 1.0 - exp(-12.0 * delta))
@@ -202,6 +235,8 @@ func _physics_process(delta: float) -> void:
 		elif Input.is_action_just_pressed("heavy_punch"):
 			try_punch(true)
 		var input := Input.get_vector("walk_left", "walk_right", "walk_forward", "walk_back")
+		if input.length() > 0.01:
+			folded_arms = false
 		var direction := Basis(Vector3.UP, yaw) * Vector3(input.x, 0, input.y)
 		var speed := RUN_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
 		if action_time > 0 or guarding:
@@ -243,7 +278,7 @@ func _physics_process(delta: float) -> void:
 			_play_clip("run" if running else "walk")
 			animator.speed_scale = clampf(horizontal_speed / (RUN_SPEED if running else WALK_SPEED), 0.65, 1.2)
 		else:
-			_play_clip("idle")
+			_play_clip("fold_arms" if folded_arms else "idle")
 		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look"
 		var house := nearest_house()
 		vehicle = nearest_vehicle() if not is_instance_valid(active_house) else null
@@ -362,6 +397,7 @@ func _house_transition(house: Node3D,entering: bool) -> void:
 	_play_clip("idle")
 	transitioning = false
 	entering_house = false
+	dialogue.event("enter_house" if entering else "exit_house")
 
 func _clear_side_position() -> Dictionary:
 	# Check both sides; require ground and enough room for the whole character.
@@ -407,6 +443,7 @@ func _begin_enter(door_position: Vector3) -> void:
 	_play_clip("seated")
 	await _blend_camera(vehicle.get_node("CameraBase/Camera3D"))
 	driving = true
+	dialogue.event("enter_car")
 	vehicle.set_driver_active(true)
 	get_parent().get_node("Spedometer").car_body = vehicle
 	get_parent().get_node("Spedometer").show()
@@ -438,6 +475,7 @@ func _begin_exit(feet: Vector3) -> void:
 	await get_tree().create_timer(0.35, false, true).timeout
 	collider.disabled = false
 	driving = false
+	dialogue.event("exit_car")
 	was_grounded = true
 	landing_time = 0.0
 	_play_clip("idle")
@@ -475,6 +513,7 @@ func try_rest(action: String) -> bool:
 		_notify("This place is occupied.")
 		return false
 	resting = action
+	dialogue.event("sleep" if action == "sleep" else "sit")
 	velocity = Vector3.ZERO
 	collider.disabled = true
 	rest_stand = active_house.rest_approach(action)
@@ -503,6 +542,7 @@ func stand_up() -> bool:
 	velocity = Vector3.ZERO
 	collider.disabled = false
 	resting = ""
+	dialogue.event("wake")
 	_play_clip("idle",0.2)
 	return true
 
@@ -520,6 +560,7 @@ func try_punch(heavy := false) -> bool:
 	if dead or driving or transitioning or resting != "" or action_time > 0 or recovery_time > 0 or not is_on_floor():
 		return false
 	guarding = false
+	folded_arms = false
 	visual.rotation.y = yaw
 	_play_clip("heavy_punch" if heavy else "punch",0.05)
 	action_time = 0.85 if heavy else 0.55
@@ -577,5 +618,5 @@ func revive() -> void:
 	_play_clip("idle",0.2)
 	if global_position.y < -20:
 		global_position = home_position
-	dialogue.speak("awake",true)
+	dialogue.event("wake")
 	_notify("Awake — health restored.")

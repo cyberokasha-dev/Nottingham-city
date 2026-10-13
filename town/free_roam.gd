@@ -7,6 +7,9 @@ var fleet: Array[VehicleBody3D] = []
 var player: CharacterBody3D
 var city: Node3D
 var population: Node3D
+var party: Node
+var city_map: Control
+var conversation: CanvasLayer
 
 func _ready() -> void:
 	town = Node3D.new()
@@ -39,11 +42,9 @@ func _ready() -> void:
 		var body: VehicleBody3D = rig.get_node("Body")
 		fleet.append(body)
 		_label_vehicle(body)
-	player = preload("res://player/player.gd").new()
-	player.name = "Player"
-	player.use_home_position = true
-	player.home_position = Vector3(3,LOT_Y+0.12,38)
-	town.add_child(player)
+	party = preload("res://actors/party.gd").new()
+	party.game = self
+	add_child(party)
 	population = preload("res://actors/population.gd").new()
 	population.city = city
 	population.player = player
@@ -51,10 +52,14 @@ func _ready() -> void:
 	var map_layer := CanvasLayer.new()
 	town.add_child(map_layer)
 	var map := preload("res://town/city_map.gd").new()
+	city_map = map
 	map.player = player
 	map.city = city
 	map.fleet = fleet
 	map_layer.add_child(map)
+	conversation = preload("res://actors/conversation.gd").new()
+	conversation.game = self
+	add_child(conversation)
 	_settle_parked_fleet()
 
 func _settle_parked_fleet() -> void:

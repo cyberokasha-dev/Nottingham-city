@@ -5,8 +5,11 @@ var health_bar: ProgressBar
 var health_style: StyleBoxFlat
 var injury_overlay: ColorRect
 var player: Node3D
+var voice_toggle: CheckButton
 static func bind() -> void:
-	var keys := {"punch": KEY_F,"heavy_punch": KEY_R,"guard": KEY_Q,"cancel_action": KEY_G,"look_modifier": KEY_Z,"sprint": KEY_SHIFT}
+	if InputMap.has_action("character_wheel"):
+		return
+	var keys := {"punch": KEY_F,"heavy_punch": KEY_R,"guard": KEY_Q,"cancel_action": KEY_G,"character_wheel": KEY_C,"fold_arms": KEY_H,"look_modifier": KEY_Z,"sprint": KEY_SHIFT}
 	for action in keys:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action,0.2)
@@ -21,6 +24,15 @@ static func bind() -> void:
 		for existing in InputMap.action_get_events(action):
 			if existing is InputEventJoypadButton:
 				InputMap.action_erase_event(action,existing)
+	for existing in InputMap.action_get_events("cycle_camera"):
+		if existing is InputEventKey and existing.physical_keycode == KEY_C:
+			InputMap.action_erase_event("cycle_camera",existing)
+	var camera_key := InputEventKey.new()
+	camera_key.physical_keycode = KEY_B
+	InputMap.action_add_event("cycle_camera",camera_key)
+	var wheel_button := InputEventJoypadButton.new()
+	wheel_button.button_index = JOY_BUTTON_DPAD_DOWN
+	InputMap.action_add_event("character_wheel",wheel_button)
 	var camera_button := InputEventJoypadButton.new()
 	camera_button.button_index = JOY_BUTTON_RIGHT_STICK
 	InputMap.action_add_event("cycle_camera",camera_button)
@@ -62,7 +74,7 @@ func _ready() -> void:
 	rows.add_child(health_bar)
 	var row := HBoxContainer.new()
 	rows.add_child(row)
-	var layout := [["△ E · Use","interact",Color("7ee0b1")],["□ F · Punch","punch",Color("eda5df")],["✕ Space · Jump","jump",Color("8bbaff")],["○ G · Stand / Wake","cancel_action",Color("f59a98")],["L1 Q · Guard","guard",Color.WHITE],["R1 R · Heavy","heavy_punch",Color.WHITE]]
+	var layout := [["△ E · Use","interact",Color("7ee0b1")],["□ F · Punch","punch",Color("eda5df")],["✕ Space · Jump","jump",Color("8bbaff")],["○ G · Stand / Wake","cancel_action",Color("f59a98")],["L1 Q · Guard","guard",Color.WHITE],["R1 R · Heavy","heavy_punch",Color.WHITE],["H · Fold arms","fold_arms",Color.WHITE]]
 	for item in layout:
 		var button := Button.new()
 		button.text = item[0]
@@ -71,15 +83,23 @@ func _ready() -> void:
 		button.button_down.connect(func(): Input.action_press(item[1]))
 		button.button_up.connect(func(): Input.action_release(item[1]))
 		row.add_child(button)
+	var character_button := Button.new()
+	character_button.text = "C · Characters"
+	character_button.focus_mode = Control.FOCUS_NONE
+	character_button.pressed.connect(player.party.toggle_wheel)
+	row.add_child(character_button)
 	var hint := Label.new()
-	hint.text = "WASD / left stick: move   Shift / L3: run   L2 Z: focus   R2 V: punch   right stick / right mouse: look"
+	hint.text = "WASD / left stick: move   Shift / L3: run   L2 Z: focus   R2 V: punch   right stick / right mouse: look · C: characters · H: fold arms"
 	hint.add_theme_font_size_override("font_size",13)
 	rows.add_child(hint)
 	var sound := CheckButton.new()
+	voice_toggle = sound
 	sound.text = "Voices on · click the game once to enable browser sound"
 	sound.button_pressed = true
 	sound.focus_mode = Control.FOCUS_NONE
 	sound.toggled.connect(func(enabled):
+		if is_instance_valid(player.party):
+			player.party.voices_enabled = enabled
 		for person in get_tree().get_nodes_in_group("people"):
 			person.dialogue.muted = not enabled
 			if not enabled:
@@ -89,8 +109,12 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if is_instance_valid(player):
+		if is_instance_valid(player.party):
+			voice_toggle.set_pressed_no_signal(player.party.voices_enabled)
 		var state: String = "Waking up" if player.waking else ("DEAD" if player.dead else (player.resting.capitalize() if player.resting != "" else ("Guarding" if player.guarding else "Free roam")))
-		status.text = "NOTTINGHAM CITY  ·  Health %d / 100  ·  %s" % [player.health,state]
+		if is_instance_valid(player.party) and player.party.game.conversation.active:
+			state = "Talking"
+		status.text = "%s  ·  Health %d / 100  ·  %s" % [player.profile.name,player.health,state]
 		health_bar.value = player.health
 		health_style.bg_color = Color("ee6a66") if player.health < 30 else (Color("eac56d") if player.health < 60 else Color("6cdfa1"))
 		injury_overlay.color.a = 0.22 if player.dead else (0.12*player.hurt_time/0.28)

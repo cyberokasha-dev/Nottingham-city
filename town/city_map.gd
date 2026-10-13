@@ -4,6 +4,8 @@ var player: Node3D
 var city: Node3D
 var fleet: Array[VehicleBody3D] = []
 var refresh := 0.0
+var destination := Vector3.ZERO
+var destination_active := false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -32,6 +34,8 @@ func _draw() -> void:
 		draw_rect(Rect2(point(house.global_position)-Vector2(2,3),Vector2(4,6)),Color("cf9778"))
 	for vehicle in fleet:
 		draw_circle(point(vehicle.global_position),2.2,Color("dfe8f0"))
+	if destination_active:
+		draw_circle(point(destination),5,Color("62baff"))
 	for resident in get_tree().get_nodes_in_group("residents"):
 		draw_circle(point(resident.global_position),1.8,Color("7ae1ba"))
 	if is_instance_valid(player):

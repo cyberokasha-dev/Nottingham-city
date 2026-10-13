@@ -9,8 +9,8 @@ Alba model card is preserved in `ALBA-MODEL-CARD.md`. Its training corpus is the
 
 Joe model card is preserved in `JOE-MODEL-CARD.md`. The model card identifies its dataset as CC0, from https://github.com/OHF-Voice/voice-datasets, and notes fine-tuning from Lessac-medium. Model cards and provenance are retained rather than treating the third-party voices as the repository's original code.
 
-`tools/prepare_voices.py` renders ten phrases in each voice and generates the timing catalog. File hashes are recorded below.
+`tools/prepare_voices.py` renders 200 authored phrases in each voice and generates the timing catalog. File hashes are recorded below.
 
-- alba.ogg SHA-256: `9503665eb453871718fbe23435412a36333deeef18bc4c81475658f21e28bc50`.
+- alba.ogg SHA-256: `ba81cb2b646f3e213a99b16dc3ccdb9150c110bbc696157c4ed8de705e6d8d0d`.
 
-- joe.ogg SHA-256: `55baaec2a81dc60eeb9779b6f646ea6caf8a100d8f7d718961cf9518a2dbbc83`.
+- joe.ogg SHA-256: `80b244216b84b811177d01d208d6f267cacd242cf44276df0d9cfb20aa0408e1`.

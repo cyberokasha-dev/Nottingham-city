@@ -39,6 +39,17 @@ var vitals: Node3D
 var reply_delay := 0.0
 var reply_key := ""
 var reply_partner: CharacterBody3D
+var in_conversation := false
+var relationships := {}
+var relationship: int:
+	get:
+		var owner: String = manager.player.profile.name if is_instance_valid(manager) and is_instance_valid(manager.player) else "Muhammad"
+		return int(relationships.get(owner,0))
+	set(value):
+		var owner: String = manager.player.profile.name if is_instance_valid(manager) and is_instance_valid(manager.player) else "Muhammad"
+		relationships[owner] = value
+var follow_actor: CharacterBody3D
+var follow_time := 0.0
 
 func _ready() -> void:
 	add_to_group("people")
@@ -134,6 +145,20 @@ func _physics_process(delta: float) -> void:
 			say(dialogue.text_for(reply_key),5)
 			dialogue.speak(reply_key)
 			reply_key = ""
+	if in_conversation:
+		velocity = Vector3.ZERO
+		return
+	if follow_time > 0 and is_instance_valid(follow_actor) and combat_time <= 0:
+		follow_time -= delta
+		var toward: Vector3 = follow_actor.global_position-global_position
+		if toward.length() > 2.4 and toward.length() < 12:
+			_move(toward.normalized(),delta,2.0)
+		else:
+			velocity.x = 0
+			velocity.z = 0
+			_gravity(delta)
+			visual.play("idle")
+		return
 	if house_transition:
 		return
 	if resting != "":

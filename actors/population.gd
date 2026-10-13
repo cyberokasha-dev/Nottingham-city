@@ -22,7 +22,7 @@ func _ready() -> void:
 		{"name":"north shops", "point":Vector3(47.7,city.GROUND_Y+0.14,-112.3)},
 		{"name":"south neighbourhood", "point":Vector3(-32.3,city.GROUND_Y+0.14,147.7)}
 	]
-	var names := ["Aisha","Musa","Sara","Adam","Fatima","Yusuf","Jade","Omar","Lena","Noah","Amina","Luca"]
+	var names := ["Safiya","Idris","Sara","Adam","Fatima","Yusuf","Nia","Omar","Lena","Noah","Amina","Luca"]
 	for i in range(names.size()):
 		var resident := preload("res://actors/resident.gd").new()
 		resident.name = names[i]

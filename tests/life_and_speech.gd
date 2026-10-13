@@ -25,12 +25,13 @@ func check_actions() -> void:
     for i in range(3):
         await physics_frame
     Input.action_release("interact")
-    if not check(player.dialogue.last_line == "hello" and player.dialogue.voice.playing, "Interaction starts audible player greeting"):
+    if not check(player.dialogue.last_line == "street_muhammad_open" and player.dialogue.voice.playing, "Interaction starts audible player greeting"):
         return
-    for i in range(310):
+    for i in range(520):
         await physics_frame
-    if not check(resident.conversations > 0 and resident.dialogue.spoken_lines > 0 and resident.dialogue.voice.playing, "Resident gives a timed spoken reply"):
+    if not check(game.conversation.active and resident.dialogue.spoken_lines > 0 and resident.dialogue.voice.playing, "Resident gives a timed spoken reply"):
         return
+    game.conversation.finish()
     resident.dialogue.muted = true
     var before_spoken = resident.dialogue.spoken_lines
     if not check(not resident.dialogue.speak("hello",true) and before_spoken == resident.dialogue.spoken_lines, "Voice mute prevents playback requests"):
