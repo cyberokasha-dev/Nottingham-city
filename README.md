@@ -1,6 +1,6 @@
 # Bajinka: Nottingham City
 
-## Milestone 1: driving foundation
+## Milestone 2: walking and vehicle interaction
 
 Adapted from the official Godot Truck Town demo, pinned to Godot demo release `4.2-31d1c0c` (commit `31d1c0c1122717b3ad74aeb94255bc38def52747`). Includes a town, three vehicle choices, vehicle physics and camera views. The town is the upstream demonstration map, not a reconstruction of Nottingham yet.
 
@@ -12,7 +12,7 @@ One-time repository setup: open **Settings → Pages**, choose **GitHub Actions*
 
 After the deployment succeeds, play at https://cyberokasha-dev.github.io/Nottingham-city/ . This URL is usable only after Pages is enabled and a deployment has succeeded.
 
-Click the game canvas, choose a vehicle, then use the arrow keys to drive. C changes the camera; U changes speed units; Escape returns to vehicle selection. Chrome needs WebGL 2 support. Chromebook performance is not yet verified.
+Click the game canvas and choose a vehicle. You start on foot beside it. Walk up and press E to enter; use the arrow keys to drive, Space to brake, then E to get out. C changes the camera; U changes speed units; Escape returns to vehicle selection. Chrome needs WebGL 2 support. Chromebook performance is not yet verified.
 
 Each successful build also saves a `Nottingham-City-Web` artifact in its Actions run. The exported files need an HTTP server; double-clicking the downloaded HTML is not supported. The hosted Pages link is the easiest way to play.
 
@@ -28,9 +28,15 @@ The project uses the Compatibility renderer to reduce GPU requirements. Performa
 
 ### Controls
 
+On foot: WASD walks, Shift runs, Space jumps. Hold the right mouse button and drag to look around. Press E near the selected vehicle to enter. The character is a simple original placeholder with moving legs.
+
+Driving:
+
 - Up/W: accelerate.
 - Down/S: brake and reverse.
 - Left/right arrows: steer.
+- Space: handbrake.
+- E: get out once stopped, when there is clear ground beside the vehicle.
 - C: cycle exterior/interior/top-down cameras.
 - U: cycle speed units.
 - Escape: return to vehicle selection.
@@ -39,7 +45,7 @@ See [UPSTREAM_README.md](UPSTREAM_README.md) for gamepad and mobile controls.
 
 ### Status and limitations
 
-Source and resource references checked. Godot 4.4.1 imports the project and launches the vehicle-selection scene in a headless smoke check. Browser export is checked separately; interactive driving and Chromebook performance still need device testing. No walking character, enter/exit mechanic, weapons, police, phone controller or multiplayer is implemented yet. These are subsequent milestones.
+Source and resource references checked. Godot 4.4.1 imports the project and launches the vehicle-selection scene in a headless smoke check. Browser export is checked separately; interactive driving and Chromebook performance still need device testing. Automated Godot checks cover walking, jumping, entry distance, parked throttle isolation, driving, moving-exit prevention, safe exiting and re-entry with all three vehicle choices. Exiting parks the whole vehicle rig in place; re-entry restores physics. The character uses keyboard and mouse controls; walking on phones, weapons, police, phone controller and multiplayer are not implemented yet. These are subsequent milestones.
 
 ### Licensing
 

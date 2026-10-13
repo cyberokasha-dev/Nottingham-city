@@ -20,6 +20,11 @@ func _load_scene(car_scene: PackedScene):
 	town.get_node(^"Back").pressed.connect(_on_back_pressed)
 
 	get_parent().add_child(town)
+	var player := preload("res://player/player.gd").new()
+	player.name = "Player"
+	player.vehicle = car.get_child(0)
+	town.add_child(player)
+	town.get_node(^"Spedometer").hide()
 	hide()
 
 

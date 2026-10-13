@@ -8,10 +8,18 @@ const BRAKE_STRENGTH = 2.0
 
 var previous_speed := linear_velocity.length()
 var _steer_target := 0.0
+var driver_active := false
 
 @onready var desired_engine_pitch: float = $EngineSound.pitch_scale
 
 func _physics_process(delta: float):
+	if not driver_active:
+		engine_force = 0.0
+		brake = 30.0
+		steering = move_toward(steering, 0.0, STEER_SPEED * delta)
+		previous_speed = linear_velocity.length()
+		return
+	brake = 0.0
 	var fwd_mps := (linear_velocity * transform.basis).x
 
 	_steer_target = Input.get_axis(&"turn_right", &"turn_left")
@@ -57,5 +65,29 @@ func _physics_process(delta: float):
 		engine_force *= Input.get_action_strength(&"reverse")
 
 	steering = move_toward(steering, _steer_target, STEER_SPEED * delta)
+	if Input.is_action_pressed("jump"):
+		engine_force = 0.0
+		brake = 30.0
 
 	previous_speed = linear_velocity.length()
+
+func set_driver_active(active: bool) -> void:
+	driver_active = active
+	$CameraBase/Camera3D.set_process_input(active)
+	$CPUParticles3D.emitting = active
+	if active:
+		for body in get_parent().find_children("*", "RigidBody3D", true, false):
+			body.freeze = false
+		$EngineSound.play()
+	else:
+		engine_force = 0.0
+		brake = 30.0
+		$EngineSound.stop()
+
+func park() -> void:
+	set_driver_active(false)
+	# Hold the whole parked rig, including trailers and tow chains, until re-entry.
+	for body in get_parent().find_children("*", "RigidBody3D", true, false):
+		body.linear_velocity = Vector3.ZERO
+		body.angular_velocity = Vector3.ZERO
+		body.freeze = true
