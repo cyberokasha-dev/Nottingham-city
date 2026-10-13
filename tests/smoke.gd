@@ -21,10 +21,16 @@ func check_demo():
             return
         if not check(player.is_on_floor(), "Character settles on town ground: " + choice):
             return
+        var skeleton = player.visual.find_child("Skeleton3D", true, false)
+        if not check(skeleton.get_bone_count() >= 65 and skeleton.find_bone("hand_l") >= 0 and skeleton.find_bone("index_03_r") >= 0, "Human has articulated hands and fingers"):
+            return
+        for clip in ["idle", "walk", "run", "jump_start", "jump_air", "land", "enter", "exit"]:
+            if not check(player.animator.has_animation(clip), "Imported motion: " + clip):
+                return
         var before = player.global_position
         Input.action_press("walk_forward")
         Input.action_press("accelerate")
-        for i in range(20):
+        for i in range(35):
             await physics_frame
         Input.action_release("walk_forward")
         Input.action_release("accelerate")
@@ -44,6 +50,14 @@ func check_demo():
         player.global_position = vehicle.global_position + Vector3(2, 0, 0)
         if not check(player.try_enter(), "Enter nearby car"):
             return
+        if not check(not player.try_enter() and not player.try_exit(), "Repeated interaction is ignored during entry"):
+            return
+        if not check(player.transitioning and not vehicle.driver_active, "Entry locks controls before seating"):
+            return
+        for i in range(300):
+            await physics_frame
+            if not player.transitioning:
+                break
         if not check(player.driving and player.collider.disabled and not player.visual.visible and vehicle.driver_active, "Driving state owns controls"):
             return
         Input.action_press("accelerate")
@@ -60,6 +74,10 @@ func check_demo():
         Input.action_release("jump")
         if not check(player.try_exit(), "Exit safely beside stopped car"):
             return
+        for i in range(180):
+            await physics_frame
+            if not player.transitioning:
+                break
         if not check(not player.driving and not player.collider.disabled and player.visual.visible and player.camera.current and not vehicle.driver_active, "Exit restores walking and parks car"):
             return
         for i in range(30):
@@ -67,6 +85,12 @@ func check_demo():
         if not check(player.is_on_floor(), "Exit places character on ground"):
             return
         if not check(player.try_enter(), "Re-enter car after exit"):
+            return
+        for i in range(300):
+            await physics_frame
+            if not player.transitioning:
+                break
+        if not check(player.driving and not player.transitioning, "Re-entry finishes and restores driving"):
             return
         for audio in menu.town.find_children("*", "AudioStreamPlayer3D", true, false):
             audio.stop()

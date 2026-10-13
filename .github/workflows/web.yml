@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           godot --headless --editor --path . --import 2>&1 | tee /tmp/import.log
           if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/import.log; then exit 1; fi
-      - name: Check all vehicle scenes
+      - name: Check animated human and all vehicle scenes
         shell: bash
         run: |
           set -euo pipefail
@@ -58,6 +58,9 @@ jobs:
           test -s build/web/index.wasm
           test -s build/web/index.pck
           cp LICENSE.md build/web/LICENSE.txt
+          cp player/models/QUATERNIUS-LICENSE.txt build/web/CHARACTER-LICENSE.txt
+          cp player/models/ANIMATION-LICENSE.txt build/web/ANIMATION-LICENSE.txt
+          cp player/models/SOURCES.md build/web/CHARACTER-SOURCES.md
           touch build/web/.nojekyll
       - name: Save downloadable browser build
         uses: actions/upload-artifact@v4
