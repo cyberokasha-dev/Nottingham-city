@@ -40,6 +40,13 @@ jobs:
           set -euo pipefail
           godot --headless --editor --path . --import 2>&1 | tee /tmp/import.log
           if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/import.log; then exit 1; fi
+      - name: Check UK traffic, junction phases and resource cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/traffic.gd 2>&1 | tee /tmp/traffic.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/traffic.log; then exit 1; fi
+          grep -q 'TRAFFIC_OK' /tmp/traffic.log
       - name: Check residents, combat, furniture, city and all six vehicles
         shell: bash
         run: |
