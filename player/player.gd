@@ -8,6 +8,8 @@ const EXIT_SPEED := 1.0
 var vehicle: VehicleBody3D
 var home_position := Vector3.ZERO
 var use_home_position := false
+var riding_bus: Node3D
+var park_activity: Node3D
 var driving := false
 var transitioning := false
 var camera: Camera3D
@@ -51,6 +53,7 @@ var controls: CanvasLayer
 var folded_arms := false
 
 func _ready() -> void:
+	collision_mask = 3
 	for action in {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -136,6 +139,16 @@ func _physics_process(delta: float) -> void:
 			if look.length() > 0.18:
 				yaw -= look.x * delta * 2.2
 				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
+	if is_instance_valid(riding_bus):
+		global_position = riding_bus.seat_position()
+		pivot.rotation = Vector3(pitch,yaw,0)
+		prompt.text = "BUS %s • %s\n%s" % [riding_bus.route.number,riding_bus.route.name,"E: get off" if riding_bus.state=="dwell" else ("Stop requested" if riding_bus.bell else "E: request next stop")]
+		if controlled and Input.is_action_just_pressed("interact"):
+			riding_bus.leave(self)
+		return
+	if is_instance_valid(park_activity):
+		park_activity.tick_user(self,delta)
+		return
 	action_time = maxf(0,action_time-delta)
 	invulnerability = maxf(0,invulnerability-delta)
 	if dead:
@@ -213,7 +226,13 @@ func _physics_process(delta: float) -> void:
 			var furniture := nearest_furniture()
 			var person := nearest_person()
 			var house := nearest_house()
-			if furniture != "":
+			var city_target := nearest_city_activity()
+			if is_instance_valid(city_target):
+				if city_target.is_in_group("city_buses"):
+					city_target.board(self)
+				else:
+					city_target.use(self)
+			elif furniture != "":
 				try_rest(furniture)
 			elif is_instance_valid(person):
 				party.game.conversation.start(person)
@@ -221,7 +240,7 @@ func _physics_process(delta: float) -> void:
 				try_house(house)
 			else:
 				try_enter()
-	if transitioning:
+	if transitioning or is_instance_valid(riding_bus) or is_instance_valid(park_activity):
 		return
 	if driving:
 		global_position = vehicle.global_position
@@ -284,7 +303,10 @@ func _physics_process(delta: float) -> void:
 		vehicle = nearest_vehicle() if not is_instance_valid(active_house) else null
 		var furniture := nearest_furniture()
 		var person := nearest_person()
-		if furniture != "":
+		var city_target := nearest_city_activity()
+		if is_instance_valid(city_target):
+			prompt.text += "\nE: " + ("board route "+city_target.route.number if city_target.is_in_group("city_buses") else city_target.nearest(self).title)
+		elif furniture != "":
 			prompt.text += "\n△ E: " + ("sleep in bed" if furniture == "sleep" else "sit on sofa")
 		elif is_instance_valid(person):
 			prompt.text += "\n△ E: talk to " + person.person_name
@@ -297,6 +319,10 @@ func _physics_process(delta: float) -> void:
 		if global_position.y < -20:
 			global_position = home_position + Vector3.UP
 			velocity = Vector3.ZERO
+	if is_instance_valid(party) and not driving:
+		var stop_text: String = party.game.city.transport.stop_hint(self)
+		if stop_text!="":
+			prompt.text += "\n"+stop_text
 	if message_time > 0:
 		prompt.text += "\n" + message
 
@@ -570,7 +596,7 @@ func try_punch(heavy := false) -> bool:
 	return true
 
 func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
-	if dead or driving or transitioning or resting != "" or invulnerability > 0:
+	if is_instance_valid(riding_bus) or is_instance_valid(park_activity) or dead or driving or transitioning or resting != "" or invulnerability > 0:
 		return
 	var toward: Vector3 = (attacker.global_position-global_position).normalized()
 	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
@@ -620,3 +646,14 @@ func revive() -> void:
 		global_position = home_position
 	dialogue.event("wake")
 	_notify("Awake — health restored.")
+
+func nearest_city_activity() -> Node3D:
+	if is_instance_valid(active_house) or not is_instance_valid(party):
+		return null
+	var bus: Node3D = party.game.city.transport.nearest_bus(self)
+	if is_instance_valid(bus):
+		return bus
+	for park in get_tree().get_nodes_in_group("city_activities"):
+		if not park.nearest(self).is_empty():
+			return park
+	return null

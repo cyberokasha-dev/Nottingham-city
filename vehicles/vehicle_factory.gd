@@ -78,6 +78,9 @@ static func _cylinder(parent: Node3D, pos: Vector3, radius: float, width: float,
 	return mesh
 
 static func _profile(parent: Node3D, slices: Array, material: Material) -> void:
+	# Thin profile panels need both faces visible at cabin/roof seams.
+	material = material.duplicate()
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var rings: Array[PackedVector3Array] = []
 	for s in slices:
 		var z: float = s[0]
@@ -190,6 +193,12 @@ static func _build_kenney(body: VehicleBody3D, kind: String) -> void:
 		wheel.add_child(source)
 		source.position = origin-position
 		source.scale = Vector3.ONE * scale_factor
+	var lamp := _material(Color("d5edff"),0,0.25,true)
+	var tail := _material(Color("d72f3f"),0,0.3,true)
+	for side in [-1.0,1.0]:
+		_box(body,Vector3(side*0.61,0.14,1.64),Vector3(0.29,0.10,0.035),lamp)
+		_box(body,Vector3(side*0.6,0.17,-1.70),Vector3(0.22,0.13,0.035),tail)
+	_box(body,Vector3(0,0.04,1.65),Vector3(0.7,0.11,0.035),_material(Color("26313b")))
 	if kind == "suv":
 		body.get_node("CollisionShape3D").shape.size.y = 1.4
 		body.get_node("CollisionShape3D").position.y = 0.56
@@ -210,3 +219,45 @@ static func _refine_truck(body: VehicleBody3D) -> void:
 			_cylinder(child,Vector3(signf(child.position.x)*0.04,0,0),child.wheel_radius*0.55,0.03,_material(Color("c2c9d1"),0.75,0.25))
 	for x in [-0.33,0.33]:
 		_box(body,Vector3(x,0.45,1.31),Vector3(0.16,0.06,0.025),_material(Color("e0f7ff"),0,0.3,true))
+
+# Reuse the actual fleet geometry without adding duplicate physics, cameras or audio.
+static func traffic_visual(kind: String, color: Color) -> Node3D:
+	var rig := make(kind)
+	var body: VehicleBody3D = rig.get_node("Body")
+	var visual := Node3D.new()
+	visual.name = "Detailed_"+kind
+	visual.set_meta("vehicle_kind",kind)
+	var wheels: Array[Node3D] = []
+	for child in body.get_children():
+		if child is VehicleWheel3D:
+			var wheel := Node3D.new()
+			wheel.transform = child.transform
+			visual.add_child(wheel)
+			_copy_meshes(child,wheel,Transform3D.IDENTITY,kind,color)
+			wheels.append(wheel)
+		elif child is MeshInstance3D or (child is Node3D and child.name not in ["CameraBase","BlobShadow","InteriorCameraPosition","TopDownCameraPosition","AudioListener3D","CPUParticles3D"]):
+			_copy_meshes(child,visual,child.transform,kind,color)
+	visual.set_meta("wheels",wheels)
+	# Physical car bodies sit above wheel contact, rather than at asphalt level.
+	for child in visual.get_children():
+		child.position.y += 0.45 if kind == "cybercab" else 0.9
+	rig.free()
+	return visual
+
+static func _copy_meshes(source: Node, target: Node3D, transform: Transform3D, kind: String, color: Color) -> void:
+	if source is MeshInstance3D and source.visible:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = source.mesh
+		mesh.transform = transform
+		mesh.material_override = source.material_override
+		if kind != "cybercab" and "wheel" not in str(source.name) and source.material_override==null:
+			var paint := ShaderMaterial.new()
+			paint.shader = preload("res://vehicles/traffic_paint.gdshader")
+			paint.set_shader_parameter("colormap",preload("res://vehicles/models/Textures/colormap.png"))
+			paint.set_shader_parameter("paint",color)
+			mesh.material_override = paint
+		mesh.visibility_range_end = 140.0
+		target.add_child(mesh)
+	for child in source.get_children():
+		if child is Node3D:
+			_copy_meshes(child,target,transform*child.transform,kind,color)

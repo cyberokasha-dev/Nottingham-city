@@ -66,3 +66,9 @@ The automated Godot smoke test launches the actual main scene, verifies a visibl
 - New city, houses, road layout, furniture and mini-map: original code and geometry under the repository MIT license.
 
 No Rockstar code, GTA models or restricted Tesla model files are included. Vehicle and character license files are copied alongside the browser export.
+
+## Living transport and parks
+
+The traffic fleet now reuses the detailed original car meshes (48 sports sedans, SUVs, vans and Aurora concepts) with varied paint and rolling wheels. Twelve double-deckers run four continuous route loops: 60, 61, 44 and fictional C1 City Link. There are 24 shelters, destination displays, waiting passengers, boarding/alighting animations, signal-controlled approaches and door interlocks. Press **M** for the route guide, and **E** to board an open bus or request/alight at a stop. Routes and Nottingham road/place names are compressed onto the game map; this is not a surveyed reproduction of the real network.
+
+There are 32 fully rigged local residents, plus lightweight waiting, boarding and bus-passenger crowds. Both parks have football with goals/scoring, moving swings, a slide, healing benches and a timed lap. Use **E** near an activity and **G** to finish. Transport references, asset licenses, controls and known scope are documented in [`transport/SOURCES.md`](transport/SOURCES.md).

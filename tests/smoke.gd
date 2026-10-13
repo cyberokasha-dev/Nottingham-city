@@ -15,7 +15,7 @@ func check_world():
     var resident_starts = {}
     for resident in game.population.residents:
         resident_starts[resident] = resident.global_position
-    if not check(game.population.residents.size() == 12 and get_nodes_in_group("people").size() == 16, "Twelve rigged autonomous neighbours"):
+    if not check(game.population.residents.size() == 32 and get_nodes_in_group("people").size() == 36, "Thirty-two rigged autonomous neighbours"):
         return
     if not check(game.population.residents[0].conversations > 0 and game.population.residents[1].conversations > 0, "Neighbours stop and talk together"):
         return
@@ -250,6 +250,7 @@ func check_world():
     for x in game.city.ROAD_X:
         for z in game.city.ROAD_Z:
             var ray = PhysicsRayQueryParameters3D.create(Vector3(x,10,z),Vector3(x,-20,z))
+            ray.collision_mask = 1 # Terrain and buildings; moving transport uses layer 2.
             var hit = game.town.get_world_3d().direct_space_state.intersect_ray(ray)
             if not check(not hit.is_empty() and absf(hit.position.y-game.LOT_Y) < 0.02, "All 30 road junctions have level ground"):
                 return

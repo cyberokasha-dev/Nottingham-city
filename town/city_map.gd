@@ -30,6 +30,18 @@ func _draw() -> void:
 		draw_line(point(Vector3(x,0,-150)),point(Vector3(x,0,170)),Color("a0afbb"),4)
 	for z in city.ROAD_Z:
 		draw_line(point(Vector3(-160,0,z)),point(Vector3(160,0,z)),Color("a0afbb"),4)
+	for park in city.parks:
+		draw_rect(Rect2(point(park.global_position)-Vector2(8,9),Vector2(16,18)),Color("5a9f64"))
+	for route in city.transport.routes:
+		var line := PackedVector2Array()
+		for p in route.path:
+			line.append(point(p))
+		line.append(line[0])
+		draw_polyline(line,Color(route.color,0.5),1.0)
+	for stop in city.transport.stops:
+		draw_circle(point(stop.pavement),1.8,Color("ffd274"))
+	for bus in city.transport.buses:
+		draw_circle(point(bus.global_position),3.0,bus.route.color)
 	for house in city.houses:
 		draw_rect(Rect2(point(house.global_position)-Vector2(2,3),Vector2(4,6)),Color("cf9778"))
 	for vehicle in fleet:

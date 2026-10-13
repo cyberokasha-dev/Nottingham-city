@@ -22,13 +22,13 @@ func _ready() -> void:
 		{"name":"north shops", "point":Vector3(47.7,city.GROUND_Y+0.14,-112.3)},
 		{"name":"south neighbourhood", "point":Vector3(-32.3,city.GROUND_Y+0.14,147.7)}
 	]
-	var names := ["Safiya","Idris","Sara","Adam","Fatima","Yusuf","Nia","Omar","Lena","Noah","Amina","Luca"]
+	var names := ["Safiya","Idris","Sara","Adam","Fatima","Yusuf","Nia","Omar","Lena","Noah","Amina","Luca","Grace","Isaac","Amira","Daniel","Mariam","Theo","Zain","Rose","Bilal","Ruby","Ethan","Hana","Tariq","Eva","Samuel","Layla","Khalid","Freya","Ibrahim","Will"]
 	for i in range(names.size()):
 		var resident := preload("res://actors/resident.gd").new()
 		resident.name = names[i]
 		resident.person_name = names[i]
 		resident.variant = i+1
-		resident.female = i in [0,2,4,6,8,10]
+		resident.female = i%2==0
 		resident.manager = self
 		resident.home = city.houses[(i*5)%city.houses.size()]
 		resident.position = spawn_point(i)

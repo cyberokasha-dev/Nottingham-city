@@ -9,6 +9,9 @@ var grass: StandardMaterial3D
 var asphalt: StandardMaterial3D
 var pavement: StandardMaterial3D
 var paint: StandardMaterial3D
+var traffic: Node3D
+var transport: Node3D
+var parks: Array[Node3D] = []
 
 func _ready() -> void:
 	grass = _material(Color("648959"))
@@ -20,9 +23,13 @@ func _ready() -> void:
 	_roads()
 	_neighbourhoods()
 	_finish_batches()
-	var traffic := preload("res://town/traffic.gd").new()
+	traffic = preload("res://town/traffic.gd").new()
 	traffic.name = "UKTraffic"
 	add_child(traffic)
+	transport = preload("res://transport/network.gd").new()
+	transport.traffic = traffic
+	traffic.transport = transport
+	add_child(transport)
 
 func _environment() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
@@ -114,7 +121,7 @@ func _neighbourhoods() -> void:
 				for side in [-1.0,1.0]:
 					var house := preload("res://town/house.gd").new()
 					house.name = "House"+str(number)
-					house.address = str(number)+" · "+["Northgate","Elm Street","College Road","City Avenue"][iz]
+					house.address = str(number)+" · "+["Mapperley Plains","Forest Road","Parliament Street","Carlton Road"][iz]
 					house.brick_color = colors[(number-1)%colors.size()]
 					house.position = Vector3(cx+side*offset,GROUND_Y+0.065,ROAD_Z[iz]+19 if row==0 else ROAD_Z[iz+1]-19)
 					house.rotation.y = PI if row==0 else 0.0
@@ -126,14 +133,14 @@ func _neighbourhoods() -> void:
 					number += 1
 
 func _park(center: Vector3) -> void:
-	var park_grass := _material(Color("789c64"))
-	_stamp(center+Vector3(0,0.015,0),Vector3(28,0.03,32),park_grass)
-	_stamp(center+Vector3(0,0.03,0),Vector3(3,0.03,32),pavement)
-	for x in [-9.0,9.0]:
-		for z in [-11.0,0.0,11.0]:
+	var park := preload("res://town/park.gd").new()
+	park.park_name = "Forest Recreation Ground" if center.x<0 else "Arboretum Gardens"
+	park.position = center
+	add_child(park)
+	parks.append(park)
+	for x in [-12.0,12.0]:
+		for z in [-10.0,12.0]:
 			_tree(center+Vector3(x,0,z))
-		_stamp(center+Vector3(x,0.48,5),Vector3(2.0,0.20,0.55),_material(Color("775a3c")))
-		_stamp(center+Vector3(x,0.83,4.8),Vector3(2.0,0.6,0.12),_material(Color("775a3c")))
 
 func _tree(pos: Vector3) -> void:
 	var trunk := MeshInstance3D.new()
@@ -161,7 +168,7 @@ func _street_sign(pos: Vector3,ix: int,iz: int) -> void:
 	var metal := _material(Color("505e66"))
 	_stamp(pos+Vector3(0,1.4,0),Vector3(0.10,2.8,0.10),metal)
 	var label := Label3D.new()
-	label.text = ["Castle Road","Market Street","Trent Avenue","Abbey Road","Station Street","Park Road"][ix]+"\n"+["Northgate","Elm Street","College Road","City Avenue","Southgate"][iz]
+	label.text = ["Alfreton Road","Mansfield Road","Milton Street","Queen Street","Woodborough Road","Westdale Lane"][ix]+"\n"+["Mapperley Plains","Forest Road","Parliament Street","Upper Parliament Street","Carlton Road"][iz]
 	label.font_size = 24
 	label.pixel_size = 0.009
 	label.position = pos+Vector3(0,2.6,0)

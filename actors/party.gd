@@ -34,7 +34,7 @@ func _ready() -> void:
 	layer.add_child(wheel)
 
 func toggle_wheel() -> void:
-	if switching or game.player.transitioning or game.player.dead:
+	if switching or game.player.transitioning or game.player.dead or is_instance_valid(game.player.riding_bus) or is_instance_valid(game.player.park_activity):
 		game.player._notify("Wait until you are ready before changing character.")
 		return
 	if game.conversation.active:
@@ -54,7 +54,7 @@ func choose(index: int) -> bool:
 	if index == selected:
 		return true
 	var previous: CharacterBody3D = members[selected]
-	if previous.dead or previous.transitioning:
+	if previous.dead or previous.transitioning or is_instance_valid(previous.riding_bus) or is_instance_valid(previous.park_activity):
 		return false
 	if previous.driving:
 		if not previous.try_exit():

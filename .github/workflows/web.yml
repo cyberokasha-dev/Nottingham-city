@@ -47,6 +47,13 @@ jobs:
           godot --headless --path . --script res://tests/traffic.gd 2>&1 | tee /tmp/traffic.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/traffic.log; then exit 1; fi
           grep -q 'TRAFFIC_OK' /tmp/traffic.log
+      - name: Check routed buses, passengers and playable parks
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/city_transport.gd 2>&1 | tee /tmp/city-transport.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-transport.log; then exit 1; fi
+          grep -q 'CITY_TRANSPORT_OK' /tmp/city-transport.log
       - name: Check residents, combat, furniture, city and all six vehicles
         shell: bash
         run: |
@@ -85,6 +92,7 @@ jobs:
           cp vehicles/models/KENNEY-LICENSE.txt build/web/VEHICLE-LICENSE.txt
           cp vehicles/models/SOURCES.md build/web/VEHICLE-SOURCES.md
           cp actors/voices/NOTICE.md build/web/VOICE-CREDITS.md
+          cp transport/SOURCES.md build/web/TRANSPORT-SOURCES.md
           cp actors/voices/ALBA-MODEL-CARD.md build/web/ALBA-MODEL-CARD.md
           cp actors/voices/JOE-MODEL-CARD.md build/web/JOE-MODEL-CARD.md
           touch build/web/.nojekyll
