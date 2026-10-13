@@ -20,6 +20,9 @@ func _ready() -> void:
 	_roads()
 	_neighbourhoods()
 	_finish_batches()
+	var traffic := preload("res://town/traffic.gd").new()
+	traffic.name = "UKTraffic"
+	add_child(traffic)
 
 func _environment() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
