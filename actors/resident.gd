@@ -29,6 +29,16 @@ var last_position := Vector3.ZERO
 var wants_home := false
 var house_transition := false
 var jump_time := 0.0
+var dead := false
+var waking := false
+var invulnerability := 0.0
+var hit_push := Vector3.ZERO
+var hurt_time := 0.0
+var dialogue: Node3D
+var vitals: Node3D
+var reply_delay := 0.0
+var reply_key := ""
+var reply_partner: CharacterBody3D
 
 func _ready() -> void:
 	add_to_group("people")
@@ -43,8 +53,18 @@ func _ready() -> void:
 	visual = preload("res://actors/human.gd").new()
 	add_child(visual)
 	visual.setup(variant,female)
+	dialogue = preload("res://actors/speech.gd").new()
+	dialogue.actor = self
+	dialogue.voice_set = "alba" if female else "joe"
+	dialogue.variant = variant
+	dialogue.viewer = manager.player
+	add_child(dialogue)
+	vitals = preload("res://actors/vitals.gd").new()
+	vitals.actor = self
+	vitals.viewer = manager.player
+	add_child(vitals)
 	bubble = Label3D.new()
-	bubble.position.y = 2.15
+	bubble.position.y = 2.7
 	bubble.font_size = 28
 	bubble.pixel_size = 0.005
 	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -58,17 +78,30 @@ func say(text: String, duration := 4.0) -> void:
 	bubble.text = person_name + "\n" + text
 	speech_time = duration
 
-func talk_to(person: CharacterBody3D) -> void:
-	if resting != "" or house_transition or combat_time > 0:
+func talk_to(person: CharacterBody3D, delay := 0.0) -> void:
+	if dead or resting != "" or house_transition or combat_time > 0:
 		return
 	state = "talk"
-	wait_time = 4.0
+	wait_time = 6.0+delay
 	velocity = Vector3.ZERO
 	visual.face(person.global_position-global_position,1)
 	visual.play("talk")
 	conversations += 1
-	var lines := ["Good morning! Lovely day for a walk.","I'm heading to the " + destination_name + ".","Have you visited the park?","I'll stop at home after this."]
-	say(lines[(travel_count+variant)%lines.size()])
+	var keys := ["greeting","park","home","day"]
+	var key: String = keys[(travel_count+variant)%keys.size()]
+	if delay > 0:
+		reply_delay = delay
+		reply_key = key
+		reply_partner = person
+	else:
+		say(dialogue.text_for(key),5)
+		dialogue.speak(key)
+
+func begin_conversation(friend: CharacterBody3D) -> void:
+	if dead or friend.dead or state == "talk" or friend.state == "talk":
+		return
+	talk_to(friend)
+	friend.talk_to(self,3.4)
 
 func _physics_process(delta: float) -> void:
 	speech_time = maxf(0,speech_time-delta)
@@ -76,19 +109,37 @@ func _physics_process(delta: float) -> void:
 		bubble.text = person_name if global_position.distance_to(manager.player.global_position) < 8 else ""
 	action_time = maxf(0,action_time-delta)
 	jump_time = maxf(0,jump_time-delta)
+	invulnerability = maxf(0,invulnerability-delta)
+	if dead:
+		wait_time -= delta
+		velocity.x = 0
+		velocity.z = 0
+		_gravity(delta)
+		if wait_time <= 1.5 and not waking:
+			waking = true
+			visual.animator.play_backwards("death",0.1)
+			visual.animator.speed_scale = visual.animator.get_animation("death").length/1.5
+		if wait_time <= 0:
+			revive()
+		return
+	if hurt_time > 0:
+		hurt_time = maxf(0,hurt_time-delta)
+		velocity.x = hit_push.x*hurt_time/0.28
+		velocity.z = hit_push.z*hurt_time/0.28
+		_gravity(delta)
+		return
+	if reply_delay > 0:
+		reply_delay -= delta
+		if reply_delay <= 0 and is_instance_valid(reply_partner) and global_position.distance_to(reply_partner.global_position) < 5:
+			say(dialogue.text_for(reply_key),5)
+			dialogue.speak(reply_key)
+			reply_key = ""
 	if house_transition:
 		return
 	if resting != "":
 		wait_time -= delta
 		if wait_time <= 0:
 			stand_up()
-		return
-	if state == "recover":
-		wait_time -= delta
-		if wait_time <= 0:
-			health = 100
-			state = "idle"
-			opponent = null
 		return
 	if attack_delay >= 0:
 		attack_delay -= delta
@@ -101,7 +152,7 @@ func _physics_process(delta: float) -> void:
 		var toward: Vector3 = opponent.global_position-global_position
 		visual.face(toward,delta)
 		guarding = fmod(combat_time,2.6) > 1.3
-		if toward.length() > 10 or opponent.driving or opponent.resting != "":
+		if toward.length() > 10 or opponent.driving or opponent.resting != "" or opponent.dead:
 			combat_time = 0
 			opponent = null
 		elif toward.length() < 1.7:
@@ -169,6 +220,7 @@ func _move(direction: Vector3,delta: float,speed: float) -> void:
 	_gravity(delta)
 	visual.face(direction,delta)
 	visual.play("jump_air" if jump_time > 0 else ("run" if speed > 2.8 else "walk"))
+	visual.animator.speed_scale = clampf(speed/(5.5 if speed > 2.8 else 2.4),0.5,1.2)
 
 func go_to(path: PackedVector3Array, place: String) -> void:
 	route = path
@@ -183,13 +235,12 @@ func _arrive() -> void:
 		_enter_home()
 	else:
 		for friend in get_tree().get_nodes_in_group("residents"):
-			if friend != self and friend.resting == "" and friend.current_house == current_house and friend.combat_time <= 0 and global_position.distance_to(friend.global_position) < 3:
-				talk_to(friend)
-				friend.talk_to(self)
+			if friend != self and not friend.dead and friend.resting == "" and friend.current_house == current_house and friend.combat_time <= 0 and global_position.distance_to(friend.global_position) < 3:
+				begin_conversation(friend)
 				break
 
 func try_rest(action: String) -> bool:
-	if not is_instance_valid(current_house) or resting != "" or not current_house.claim_rest(action,self):
+	if dead or not is_instance_valid(current_house) or resting != "" or not current_house.claim_rest(action,self):
 		return false
 	resting = action
 	global_position = current_house.rest_pose(action)
@@ -202,6 +253,7 @@ func try_rest(action: String) -> bool:
 		visual.animator.pause()
 	wait_time = 12 if action == "sleep" else 8
 	say("Taking a rest.")
+	dialogue.speak("rest")
 	return true
 
 func stand_up() -> void:
@@ -254,13 +306,20 @@ func _leave_home() -> void:
 	manager.next_destination(self)
 
 func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
-	if resting != "" or house_transition or state == "recover":
+	if dead or invulnerability > 0 or resting != "" or house_transition:
 		return
 	var toward: Vector3 = (attacker.global_position-global_position).normalized()
 	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
 		say("Blocked!",1.0)
+		dialogue.speak("blocked")
 		return
 	health = maxi(0,health-damage)
+	visual.impact()
+	hit_push = -toward*2.8
+	hurt_time = 0.28
+	guarding = false
+	reply_delay = 0
+	dialogue.speak("hurt")
 	opponent = attacker
 	combat_time = 8
 	state = "fight"
@@ -270,15 +329,43 @@ func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
 	action_time = 0.55
 	say("Hey! Stop that.")
 	if health == 0:
-		state = "recover"
-		wait_time = 5
-		combat_time = 0
-		say("I need a moment.",5)
+		die()
 
 func try_jump() -> bool:
-	if not is_on_floor() or resting != "" or house_transition or action_time > 0:
+	if dead or not is_on_floor() or resting != "" or house_transition or action_time > 0:
 		return false
 	velocity.y = 5.0
 	jump_time = 0.5
 	visual.play("jump_start",0.05)
 	return true
+
+func die() -> void:
+	if dead:
+		return
+	dead = true
+	waking = false
+	health = 0
+	state = "dead"
+	wait_time = 7
+	combat_time = 0
+	attack_delay = -1
+	action_time = 0
+	hurt_time = 0
+	guarding = false
+	opponent = null
+	reply_delay = 0
+	velocity = Vector3.ZERO
+	visual.play("death",0.08)
+	say("DEAD — waking shortly.",7)
+
+func revive() -> void:
+	dead = false
+	waking = false
+	health = 100
+	invulnerability = 2
+	state = "idle"
+	wait_time = 4
+	velocity = Vector3.ZERO
+	visual.play("idle",0.2)
+	say("I'm awake. Let's start again.")
+	dialogue.speak("awake")

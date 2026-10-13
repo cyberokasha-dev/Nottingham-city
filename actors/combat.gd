@@ -3,7 +3,7 @@ extends RefCounted
 static func strike(attacker: CharacterBody3D, direction: Vector3, damage: int) -> int:
 	var hits := 0
 	for target in attacker.get_tree().get_nodes_in_group("people"):
-		if target == attacker or not target.has_method("receive_hit"):
+		if target == attacker or target.dead or not target.has_method("receive_hit"):
 			continue
 		var offset: Vector3 = target.global_position-attacker.global_position
 		if offset.length() > 1.9 or absf(offset.y) > 1.0:

@@ -1,6 +1,9 @@
 extends CanvasLayer
 ## Keyboard, touch and standardized gamepad actions use the same InputMap.
 var status: Label
+var health_bar: ProgressBar
+var health_style: StyleBoxFlat
+var injury_overlay: ColorRect
 var player: Node3D
 static func bind() -> void:
 	var keys := {"punch": KEY_F,"heavy_punch": KEY_R,"guard": KEY_Q,"cancel_action": KEY_G,"look_modifier": KEY_Z,"sprint": KEY_SHIFT}
@@ -34,15 +37,29 @@ static func bind() -> void:
 		InputMap.action_add_event(action,event)
 
 func _ready() -> void:
+	injury_overlay = ColorRect.new()
+	injury_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	injury_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	injury_overlay.color = Color(0.65,0.03,0.03,0)
+	add_child(injury_overlay)
 	var panel := PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	panel.position = Vector2(20,-108)
+	panel.position = Vector2(20,-166)
 	add_child(panel)
 	var rows := VBoxContainer.new()
 	panel.add_child(rows)
 	status = Label.new()
 	status.add_theme_font_size_override("font_size",16)
 	rows.add_child(status)
+	health_bar = ProgressBar.new()
+	health_bar.custom_minimum_size = Vector2(200,16)
+	health_style = StyleBoxFlat.new()
+	health_style.bg_color = Color("6cdfa1")
+	health_style.set_corner_radius_all(4)
+	health_bar.add_theme_stylebox_override("fill",health_style)
+	health_bar.max_value = 100
+	health_bar.show_percentage = true
+	rows.add_child(health_bar)
 	var row := HBoxContainer.new()
 	rows.add_child(row)
 	var layout := [["△ E · Use","interact",Color("7ee0b1")],["□ F · Punch","punch",Color("eda5df")],["✕ Space · Jump","jump",Color("8bbaff")],["○ G · Stand / Wake","cancel_action",Color("f59a98")],["L1 Q · Guard","guard",Color.WHITE],["R1 R · Heavy","heavy_punch",Color.WHITE]]
@@ -58,7 +75,22 @@ func _ready() -> void:
 	hint.text = "WASD / left stick: move   Shift / L3: run   L2 Z: focus   R2 V: punch   right stick / right mouse: look"
 	hint.add_theme_font_size_override("font_size",13)
 	rows.add_child(hint)
+	var sound := CheckButton.new()
+	sound.text = "Voices on · click the game once to enable browser sound"
+	sound.button_pressed = true
+	sound.focus_mode = Control.FOCUS_NONE
+	sound.toggled.connect(func(enabled):
+		for person in get_tree().get_nodes_in_group("people"):
+			person.dialogue.muted = not enabled
+			if not enabled:
+				person.dialogue.voice.stop()
+				person.dialogue._release_slot())
+	rows.add_child(sound)
 
 func _process(_delta: float) -> void:
 	if is_instance_valid(player):
-		status.text = "NOTTINGHAM CITY  ·  Health %d / 100  ·  %s" % [player.health,player.resting.capitalize() if player.resting != "" else ("Guarding" if player.guarding else "Free roam")]
+		var state: String = "Waking up" if player.waking else ("DEAD" if player.dead else (player.resting.capitalize() if player.resting != "" else ("Guarding" if player.guarding else "Free roam")))
+		status.text = "NOTTINGHAM CITY  ·  Health %d / 100  ·  %s" % [player.health,state]
+		health_bar.value = player.health
+		health_style.bg_color = Color("ee6a66") if player.health < 30 else (Color("eac56d") if player.health < 60 else Color("6cdfa1"))
+		injury_overlay.color.a = 0.22 if player.dead else (0.12*player.hurt_time/0.28)

@@ -180,7 +180,7 @@ def build(model_path, animation_path, output):
              'Jump_Start': 'jump_start', 'Jump_Loop': 'jump_air', 'Jump_Land': 'land',
              'Sitting_Enter': 'enter', 'Sitting_Exit': 'exit', 'Driving_Loop': 'seated', 'Sitting_Idle_Loop': 'sit',
              'Idle_Talking_Loop': 'talk', 'Punch_Jab': 'punch',
-             'Punch_Cross': 'heavy_punch', 'Hit_Chest': 'hit'}
+             'Punch_Cross': 'heavy_punch', 'Hit_Chest': 'hit', 'Death01': 'death'}
     doc['animations'] = []
     for animation in source['animations']:
         if animation['name'] not in clips:

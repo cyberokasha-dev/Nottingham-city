@@ -35,8 +35,7 @@ func _ready() -> void:
 		add_child(resident)
 		residents.append(resident)
 	# Two neighbours visibly chatting beside the starting courtyard.
-	residents[0].talk_to(residents[1])
-	residents[1].talk_to(residents[0])
+	residents[0].begin_conversation(residents[1])
 
 func spawn_point(index: int) -> Vector3:
 	if index < 4:

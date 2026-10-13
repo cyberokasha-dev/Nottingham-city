@@ -47,6 +47,13 @@ jobs:
           godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee /tmp/smoke.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/smoke.log; then exit 1; fi
           grep -q 'SMOKE_OK' /tmp/smoke.log
+      - name: Check health, death, waking and spoken interactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/life_and_speech.gd 2>&1 | tee /tmp/life-speech.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/life-speech.log; then exit 1; fi
+          grep -q 'LIFE_SPEECH_OK' /tmp/life-speech.log
       - name: Export browser game
         shell: bash
         run: |
@@ -63,6 +70,9 @@ jobs:
           cp player/models/SOURCES.md build/web/CHARACTER-SOURCES.md
           cp vehicles/models/KENNEY-LICENSE.txt build/web/VEHICLE-LICENSE.txt
           cp vehicles/models/SOURCES.md build/web/VEHICLE-SOURCES.md
+          cp actors/voices/NOTICE.md build/web/VOICE-CREDITS.md
+          cp actors/voices/ALBA-MODEL-CARD.md build/web/ALBA-MODEL-CARD.md
+          cp actors/voices/JOE-MODEL-CARD.md build/web/JOE-MODEL-CARD.md
           touch build/web/.nojekyll
       - name: Save downloadable browser build
         uses: actions/upload-artifact@v4

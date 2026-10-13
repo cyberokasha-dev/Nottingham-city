@@ -3,6 +3,8 @@ extends Node3D
 var animator: AnimationPlayer
 var clip := ""
 var model: Node3D
+var wardrobe: ShaderMaterial
+var flash_time := 0.0
 
 func setup(variant := 0, female := false) -> void:
 	model = load("res://player/models/human_female.glb" if female else "res://player/models/human.glb").instantiate()
@@ -14,6 +16,7 @@ func setup(variant := 0, female := false) -> void:
 	var skins := [Color("9b603e"),Color("ce9975"),Color("633b29"),Color("e8b994")]
 	var shirts := [Color("2867b0"),Color("a54e5b"),Color("4a8270"),Color("c6a050"),Color("e3ddd0"),Color("655291")]
 	var material := ShaderMaterial.new()
+	wardrobe = material
 	material.shader = preload("res://actors/wardrobe.gdshader")
 	material.set_shader_parameter("skin_tone",skins[variant % skins.size()])
 	material.set_shader_parameter("shirt_tone",shirts[variant % shirts.size()])
@@ -33,3 +36,11 @@ func play(animation: String, blend := 0.16) -> void:
 func face(direction: Vector3, delta: float) -> void:
 	if direction.length_squared() > 0.01:
 		rotation.y = lerp_angle(rotation.y,atan2(-direction.x,-direction.z),minf(1,delta*10))
+
+func impact() -> void:
+	flash_time = 0.22
+
+func _process(delta: float) -> void:
+	flash_time = maxf(0,flash_time-delta)
+	if is_instance_valid(wardrobe):
+		wardrobe.set_shader_parameter("impact",flash_time/0.22)

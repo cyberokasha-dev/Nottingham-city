@@ -36,6 +36,13 @@ var strike_damage := 18
 var recovery_time := 0.0
 var rest_stand := Vector3.ZERO
 var rest_tween: Tween
+var dead := false
+var waking := false
+var invulnerability := 0.0
+var hit_push := Vector3.ZERO
+var hurt_time := 0.0
+var sleep_healing := 0.0
+var dialogue: Node3D
 
 func _ready() -> void:
 	for action in {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}:
@@ -56,6 +63,10 @@ func _ready() -> void:
 	visual = preload("res://actors/human.gd").new()
 	add_child(visual)
 	visual.setup(0)
+	dialogue = preload("res://actors/speech.gd").new()
+	dialogue.actor = self
+	dialogue.voice_set = "joe"
+	add_child(dialogue)
 	animator = visual.animator
 	_play_clip("idle")
 	pivot = Node3D.new()
@@ -115,12 +126,31 @@ func _physics_process(delta: float) -> void:
 				yaw -= look.x * delta * 2.2
 				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
 	action_time = maxf(0,action_time-delta)
-	var recovering := recovery_time > 0
-	recovery_time = maxf(0,recovery_time-delta)
-	if recovering and recovery_time <= 0:
-		health = 100
-		_play_clip("idle")
-		_notify("Recovered — take a rest or block the next punch.")
+	invulnerability = maxf(0,invulnerability-delta)
+	if dead:
+		recovery_time = maxf(0,recovery_time-delta)
+		velocity.x = 0
+		velocity.z = 0
+		if not is_on_floor():
+			velocity.y -= 20*delta
+		move_and_slide()
+		if recovery_time <= 1.5 and not waking:
+			waking = true
+			animator.play_backwards("death",0.1)
+			animator.speed_scale = animator.get_animation("death").length/1.5
+		if recovery_time <= 0:
+			revive()
+		prompt.text = "Waking up…" if waking else "DEAD — waking in %d seconds" % ceili(recovery_time)
+		return
+	if hurt_time > 0:
+		hurt_time = maxf(0,hurt_time-delta)
+		velocity.x = hit_push.x*hurt_time/0.28
+		velocity.z = hit_push.z*hurt_time/0.28
+		if not is_on_floor():
+			velocity.y -= 20*delta
+		move_and_slide()
+		prompt.text = "Hit! Health %d / 100" % health
+		return
 	if strike_pending:
 		strike_delay -= delta
 		if strike_delay <= 0:
@@ -130,13 +160,13 @@ func _physics_process(delta: float) -> void:
 		pivot.rotation = Vector3(pitch,yaw,0)
 		prompt.text = ("Sleeping — ○ G / △ E: wake up" if resting == "sleep" else "Sitting — ○ G / △ E: stand up")
 		if resting == "sleep":
-			health = mini(100,health+1)
+			sleep_healing += delta*8
+			if sleep_healing >= 1:
+				health = mini(100,health+int(sleep_healing))
+				sleep_healing -= int(sleep_healing)
 			visual.position.y = sin(Time.get_ticks_msec()*0.0018)*0.008
 		if Input.is_action_just_pressed("cancel_action") or Input.is_action_just_pressed("interact"):
 			stand_up()
-		return
-	if recovery_time > 0:
-		prompt.text = "Recovering…"
 		return
 	if transitioning:
 		prompt.text = "Opening the house…" if entering_house else ("Getting into the vehicle…" if not driving else "Getting out…")
@@ -151,7 +181,9 @@ func _physics_process(delta: float) -> void:
 			if furniture != "":
 				try_rest(furniture)
 			elif is_instance_valid(person):
-				person.talk_to(self)
+				dialogue.speak("hello",true)
+				person.talk_to(self,2.1)
+				_notify("You: " + dialogue.text_for("hello"))
 			elif is_instance_valid(house):
 				try_house(house)
 			else:
@@ -234,7 +266,7 @@ func _physics_process(delta: float) -> void:
 		prompt.text += "\n" + message
 
 func try_enter() -> bool:
-	if transitioning or driving or resting != "" or action_time > 0 or is_instance_valid(active_house):
+	if dead or transitioning or driving or resting != "" or action_time > 0 or is_instance_valid(active_house):
 		return false
 	vehicle = nearest_vehicle()
 	if not is_instance_valid(vehicle):
@@ -284,7 +316,7 @@ func nearest_house() -> Node3D:
 	return closest
 
 func try_house(house: Node3D) -> bool:
-	if transitioning or driving or resting != "" or action_time > 0 or house != nearest_house():
+	if dead or transitioning or driving or resting != "" or action_time > 0 or house != nearest_house():
 		return false
 	transitioning = true
 	entering_house = true
@@ -437,7 +469,7 @@ func nearest_furniture() -> String:
 	return ""
 
 func try_rest(action: String) -> bool:
-	if transitioning or driving or resting != "" or action_time > 0 or not is_instance_valid(active_house):
+	if dead or transitioning or driving or resting != "" or action_time > 0 or not is_instance_valid(active_house):
 		return false
 	if action != nearest_furniture() or not active_house.claim_rest(action,self):
 		_notify("This place is occupied.")
@@ -479,13 +511,13 @@ func nearest_person() -> CharacterBody3D:
 	var distance := 2.4
 	for person in get_tree().get_nodes_in_group("residents"):
 		var d := global_position.distance_to(person.global_position)
-		if d < distance and person.current_house == active_house and person.resting == "":
+		if d < distance and person.current_house == active_house and person.resting == "" and not person.dead:
 			nearest = person
 			distance = d
 	return nearest
 
 func try_punch(heavy := false) -> bool:
-	if driving or transitioning or resting != "" or action_time > 0 or recovery_time > 0 or not is_on_floor():
+	if dead or driving or transitioning or resting != "" or action_time > 0 or recovery_time > 0 or not is_on_floor():
 		return false
 	guarding = false
 	visual.rotation.y = yaw
@@ -497,16 +529,53 @@ func try_punch(heavy := false) -> bool:
 	return true
 
 func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
-	if driving or transitioning or resting != "" or recovery_time > 0:
+	if dead or driving or transitioning or resting != "" or invulnerability > 0:
 		return
 	var toward: Vector3 = (attacker.global_position-global_position).normalized()
 	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
 		_notify("Blocked")
+		dialogue.speak("blocked",true)
 		return
 	health = maxi(0,health-damage)
+	visual.impact()
+	for device in Input.get_connected_joypads():
+		Input.start_joy_vibration(device,0.25,0.65,0.18)
+	hit_push = -toward * 2.8
+	hurt_time = 0.28
+	guarding = false
+	dialogue.speak("hurt",true)
 	strike_pending = false
 	_play_clip("hit",0.06)
 	action_time = 0.5
 	if health == 0:
-		recovery_time = 3.0
-		_notify("Recovering…")
+		die()
+
+func die() -> void:
+	if dead:
+		return
+	dead = true
+	waking = false
+	health = 0
+	recovery_time = 6
+	strike_pending = false
+	hurt_time = 0
+	guarding = false
+	action_time = 0
+	velocity = Vector3.ZERO
+	visual.rotation.x = 0
+	_play_clip("death",0.08)
+	_notify("You died. You will wake up shortly.")
+
+func revive() -> void:
+	dead = false
+	waking = false
+	health = 100
+	recovery_time = 0
+	invulnerability = 2
+	velocity = Vector3.ZERO
+	visual.rotation.x = 0
+	_play_clip("idle",0.2)
+	if global_position.y < -20:
+		global_position = home_position
+	dialogue.speak("awake",true)
+	_notify("Awake — health restored.")
