@@ -21,6 +21,8 @@ func _ready():
 
 
 func _process(_delta):
+	if not visible or not is_instance_valid(car_body):
+		return
 	var speed := car_body.linear_velocity.length()
 	if speed_unit == SpeedUnit.METERS_PER_SECOND:
 		text = "Speed: " + ("%.1f" % speed) + " m/s"

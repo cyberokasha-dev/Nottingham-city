@@ -1,54 +1,45 @@
 # Bajinka: Nottingham City
 
-## Milestone 3: animated human character
+## Milestone 4: walk up to any vehicle
 
-Adapted from the official Godot Truck Town demo, pinned to Godot demo release `4.2-31d1c0c` (commit `31d1c0c1122717b3ad74aeb94255bc38def52747`). Includes a town, three vehicle choices, vehicle physics and camera views. The town is the upstream demonstration map, not a reconstruction of Nottingham yet.
+The game opens directly into a vehicle courtyard with the animated human standing on foot. The car selection screen is removed. Six vehicles coexist: the gold Aurora concept car, sports sedan, luxury SUV, city van, tow truck and articulated truck. Walk to a vehicle and press E; the nearby vehicle's name appears in the prompt. You can drive, stop, get out and switch to another vehicle. Other vehicles stay parked.
 
-### Play in Chrome (no Linux installation needed)
+The Aurora is an original Cybercab-inspired game model, with a gold body, dark panoramic canopy, covered wheels and light bars. The other new cars use Kenney's CC0 Car Kit. The trucks retain the functional towing and articulated trailer from the Godot Truck Town demo, with refreshed surface, wheel and light details. The town remains the upstream demonstration map, not a reconstruction of Nottingham.
 
-The browser build is published by `.github/workflows/web.yml` using Godot 4.4.1 and matching export templates. It uses a single-threaded Web export, so GitHub Pages does not need special isolation headers.
+### Play in Chrome
 
-One-time repository setup: open **Settings → Pages**, choose **GitHub Actions** under Source, and save if prompted. Open **Actions → Build and publish browser game** to check the build and deployment. If needed, choose **Run workflow** after enabling Pages.
+Play at https://cyberokasha-dev.github.io/Nottingham-city/ after the latest GitHub Actions deployment succeeds. Click the game canvas to focus the keyboard. After an update, use Ctrl+Shift+R to reload the current build. Chrome needs WebGL 2.
 
-After the deployment succeeds, play at https://cyberokasha-dev.github.io/Nottingham-city/ . This URL is usable only after Pages is enabled and a deployment has succeeded.
-
-Click the game canvas and choose a vehicle. You start on foot beside it. Walk up and press E to enter; use the arrow keys to drive, Space to brake, then E to get out. C changes the camera; U changes speed units; Escape returns to vehicle selection. Chrome needs WebGL 2 support. Chromebook performance is not yet verified.
-
-Each successful build also saves a `Nottingham-City-Web` artifact in its Actions run. The exported files need an HTTP server; double-clicking the downloaded HTML is not supported. The hosted Pages link is the easiest way to play.
-
-### Run in the editor
-
-1. Install Godot 4.2 or a newer compatible Godot 4 editor.
-2. Download this repository as ZIP and extract it, or clone it.
-3. In Godot Project Manager choose Import and select `project.godot`.
-4. Wait for assets to import. Press F6 only for the current scene; press F5 to run the full project.
-5. Choose a vehicle in the menu.
-
-The project uses the Compatibility renderer to reduce GPU requirements. Performance on the user's Chromebook is not tested.
+The `.github/workflows/web.yml` workflow imports with Godot 4.4.1, checks the complete on-foot/vehicle flow, exports a single-threaded browser game, then publishes it to GitHub Pages. Each successful build also saves the `Nottingham-City-Web` downloadable artifact. Downloaded HTML needs an HTTP server; the hosted game link is the easiest way to play.
 
 ### Controls
 
-On foot: WASD walks, Shift runs, Space jumps. Hold the right mouse button and drag to look around. Press E near the selected vehicle to enter. The character is a rounded, skinned Quaternius human with a face, arms, hands, articulated fingers, hair and fitted clothes. Idle, walk, sprint, jump and landing poses blend automatically. Vehicle entry approaches a clear side and blends sitting motion and cameras; exit blends standing motion back to walking.
-
-Driving:
-
-- Up/W: accelerate.
-- Down/S: brake and reverse.
-- Left/right arrows: steer.
-- Space: handbrake.
-- E: get out once stopped, when there is clear ground beside the vehicle.
-- C: cycle exterior/interior/top-down cameras.
+- On foot: WASD walks, Shift runs, Space jumps. Hold the right mouse button and drag to look around.
+- E: enter the nearest vehicle within reach. A wall between you and the vehicle blocks entry.
+- Driving: WASD or arrow keys steer, accelerate and reverse. Space applies the brake.
+- E while stopped: get out when there is clear ground beside the vehicle.
+- C: cycle exterior, interior and overhead driving cameras.
 - U: cycle speed units.
-- Escape: return to vehicle selection.
 
-See [UPSTREAM_README.md](UPSTREAM_README.md) for gamepad and mobile controls.
+The Quaternius human has a face, arms, hands, articulated fingers, hair, fitted clothes and shoes. Idle, walking, running, jumping and landing blend automatically. Entry approaches a clear side and blends sitting motion and cameras; exit blends standing motion back to walking. Doors are not animated and the driver is hidden inside the current vehicle interiors.
 
-### Status and limitations
+### Run in Godot
 
-Source and resource references checked. Godot 4.4.1 imports the project and launches the vehicle-selection scene in a headless smoke check. Browser export is checked separately; interactive driving and Chromebook performance still need device testing. Automated Godot checks cover the imported human rig and motion clips, walking, jumping, entry distance, transition control locking, parked throttle isolation, driving, moving-exit prevention, safe exiting and re-entry with all three vehicle choices. Exiting parks the whole vehicle rig in place; re-entry restores physics. The character uses keyboard and mouse controls; walking on phones, weapons, police, phone controller and multiplayer are not implemented yet. These are subsequent milestones.
+1. Install Godot 4.4.1 or a newer compatible Godot 4 editor.
+2. Download or clone the repository, then import `project.godot`.
+3. Wait for assets to import and press F5. The character appears in the courtyard without a menu.
 
-### Licensing
+The Compatibility renderer reduces GPU requirements. Native rendered previews are in `screenshots/`. Chromebook performance and phone walking controls still need device work; weapons, police and multiplayer are not implemented.
 
-Upstream code is MIT: see [LICENSE.md](LICENSE.md). Retain the upstream copyright and licence in redistributions. This import does not include Rockstar code or GTA assets. Original upstream documentation is retained in UPSTREAM_README.md.
+### Validation
 
-Character assets and selected animations are CC0 by Quaternius. See [player/models/SOURCES.md](player/models/SOURCES.md) for provenance, preparation, checksums and character limitations.
+The automated Godot smoke test launches the actual main scene, verifies a visible human standing on the ground, checks all six nearby vehicles, walking and jumping, nearest-vehicle selection, input locking during transitions, active-vehicle acceleration, unoccupied-vehicle isolation, moving-exit prevention and safe exits back to walking. Browser export is checked separately. The original Godot Truck Town import is pinned to demo release `4.2-31d1c0c` (commit `31d1c0c1122717b3ad74aeb94255bc38def52747`).
+
+### Asset licenses
+
+- Code and original concept geometry: MIT, see `LICENSE.md`.
+- Character and animations: Quaternius CC0, see `player/models/SOURCES.md` and preserved license files.
+- New everyday cars: Kenney CC0, see `vehicles/models/SOURCES.md` and `KENNEY-LICENSE.txt`.
+- Original trucks and town: official Godot Truck Town demo, MIT; see `UPSTREAM_README.md`.
+
+No Rockstar code, GTA models or restricted Tesla model files are included. Vehicle and character license files are copied alongside the browser export.

@@ -1,0 +1,101 @@
+extends Node3D
+
+const LOT_Y := -5.12
+const FACTORY = preload("res://vehicles/vehicle_factory.gd")
+var town: Node3D
+var fleet: Array[VehicleBody3D] = []
+var player: CharacterBody3D
+
+func _ready() -> void:
+	town = preload("res://town/town_scene.tscn").instantiate()
+	add_child(town)
+	town.get_node("Back").hide()
+	town.get_node("Spedometer").hide()
+	_build_courtyard()
+	var lineup := [
+		["cybercab",Vector3(0,LOT_Y+0.62,34)],
+		["sports",Vector3(-7,LOT_Y+0.66,34)],
+		["suv",Vector3(7,LOT_Y+0.66,34)],
+		["van",Vector3(14,LOT_Y+0.66,34)],
+		["tow",Vector3(-14,LOT_Y+0.60,55)],
+		["trailer",Vector3(0,LOT_Y+0.60,58)]
+	]
+	for item in lineup:
+		var rig: Node3D = FACTORY.make(item[0])
+		rig.position = item[1]
+		town.add_child(rig)
+		var body: VehicleBody3D = rig.get_node("Body")
+		fleet.append(body)
+		_label_vehicle(body)
+	player = preload("res://player/player.gd").new()
+	player.name = "Player"
+	player.use_home_position = true
+	player.home_position = Vector3(3,LOT_Y+0.12,38)
+	town.add_child(player)
+	_settle_parked_fleet()
+
+func _settle_parked_fleet() -> void:
+	for i in range(120):
+		await get_tree().physics_frame
+	for body in fleet:
+		if not body.driver_active and (not player.transitioning or player.vehicle != body):
+			body.park()
+
+func _build_courtyard() -> void:
+	var tarmac := StandardMaterial3D.new()
+	tarmac.albedo_color = Color("35434b")
+	tarmac.roughness = 0.95
+	var surface := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(48,0.22,48)
+	surface.mesh = mesh
+	surface.material_override = tarmac
+	surface.position = Vector3(0,LOT_Y-0.11,46)
+	town.add_child(surface)
+	var ground := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = mesh.size
+	collision.shape = shape
+	ground.add_child(collision)
+	surface.add_child(ground)
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = Color("e4e4d2")
+	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for z in [34,55]:
+		for x in [-17.5,-10.5,-3.5,3.5,10.5,17.5]:
+			_marking(Vector3(x,LOT_Y+0.012,z),Vector3(0.075,0.015,7.5 if z==34 else 13.0),paint)
+	_marking(Vector3(0,LOT_Y+0.012,30),Vector3(35,0.015,0.075),paint)
+	var sign := Label3D.new()
+	sign.text = "NOTTINGHAM CITY\nVEHICLE COURTYARD"
+	sign.font_size = 48
+	sign.pixel_size = 0.01
+	sign.outline_size = 10
+	sign.position = Vector3(-19,LOT_Y+2.7,25)
+	town.add_child(sign)
+	for x in [-22,22]:
+		for z in [28,64]:
+			var light := OmniLight3D.new()
+			light.position = Vector3(x,LOT_Y+4,z)
+			light.omni_range = 10.0
+			light.light_energy = 0.5
+			town.add_child(light)
+
+func _marking(pos: Vector3,size: Vector3,material: Material) -> void:
+	var line := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	line.mesh = box
+	line.material_override = material
+	line.position = pos
+	town.add_child(line)
+
+func _label_vehicle(body: VehicleBody3D) -> void:
+	var label := Label3D.new()
+	label.text = body.display_name.replace(" — ","\n")
+	label.font_size = 28
+	label.pixel_size = 0.007
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.position = Vector3(0,2.7,0)
+	label.no_depth_test = false
+	body.add_child(label)

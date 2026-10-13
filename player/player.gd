@@ -6,6 +6,8 @@ const INTERACT_DISTANCE := 4.0
 const EXIT_SPEED := 1.0
 
 var vehicle: VehicleBody3D
+var home_position := Vector3.ZERO
+var use_home_position := false
 var driving := false
 var transitioning := false
 var camera: Camera3D
@@ -73,8 +75,12 @@ func _ready() -> void:
 	prompt.add_theme_constant_override("shadow_offset_x", 2)
 	prompt.add_theme_constant_override("shadow_offset_y", 2)
 	hud.add_child(prompt)
-	vehicle.set_driver_active(false)
-	global_position = vehicle.global_position + Vector3(3, 1, 0)
+	if use_home_position:
+		global_position = home_position
+	elif is_instance_valid(vehicle):
+		vehicle.set_driver_active(false)
+		global_position = vehicle.global_position + Vector3(3, 1, 0)
+		home_position = global_position
 
 func _play_clip(clip: String, blend := 0.16) -> void:
 	if current_clip != clip:
@@ -101,7 +107,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if driving:
 		global_position = vehicle.global_position
-		prompt.text = "DRIVING — E: get out (stop first)\nArrows/W/S: drive · Space: brake · C: camera · Esc: menu"
+		prompt.text = vehicle.display_name + " — E: get out (stop first)\nArrows/WASD: drive · Space: brake · C: camera"
 	else:
 		pivot.rotation.x = lerpf(pivot.rotation.x, pitch, 1.0 - exp(-12.0 * delta))
 		pivot.rotation.y = lerp_angle(pivot.rotation.y, yaw, 1.0 - exp(-12.0 * delta))
@@ -137,17 +143,23 @@ func _physics_process(delta: float) -> void:
 			animator.speed_scale = clampf(horizontal_speed / (RUN_SPEED if running else WALK_SPEED), 0.65, 1.2)
 		else:
 			_play_clip("idle")
-		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look · Esc: menu"
-		if global_position.distance_to(vehicle.global_position) <= INTERACT_DISTANCE:
-			prompt.text += "\nE: enter vehicle"
+		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look"
+		vehicle = nearest_vehicle()
+		if is_instance_valid(vehicle):
+			prompt.text += "\nE: enter " + vehicle.display_name
+		else:
+			prompt.text += "\nWalk up to any parked vehicle"
 		if global_position.y < -20:
-			global_position = vehicle.global_position + Vector3(3, 2, 0)
+			global_position = home_position + Vector3.UP
 			velocity = Vector3.ZERO
 	if message_time > 0:
 		prompt.text += "\n" + message
 
 func try_enter() -> bool:
 	if transitioning or driving:
+		return false
+	vehicle = nearest_vehicle()
+	if not is_instance_valid(vehicle):
 		return false
 	if global_position.distance_to(vehicle.global_position) > INTERACT_DISTANCE:
 		return false
@@ -161,6 +173,23 @@ func try_enter() -> bool:
 	transitioning = true
 	_begin_enter(side.position)
 	return true
+
+func nearest_vehicle() -> VehicleBody3D:
+	var closest: VehicleBody3D = null
+	var distance := INTERACT_DISTANCE
+	for candidate in get_tree().get_nodes_in_group("driveable_vehicles"):
+		var candidate_distance := global_position.distance_to(candidate.global_position)
+		if candidate_distance < distance:
+			var eye := global_position + Vector3.UP
+			var target: Vector3 = candidate.global_position + Vector3.UP * 0.4
+			var ray := PhysicsRayQueryParameters3D.create(eye, target)
+			ray.exclude = [get_rid(), candidate.get_rid()]
+			var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+			if not hit.is_empty() and not candidate.get_parent().is_ancestor_of(hit.collider):
+				continue
+			closest = candidate
+			distance = candidate_distance
+	return closest
 
 func _clear_side_position() -> Dictionary:
 	# Check both sides; require ground and enough room for the whole character.
@@ -207,6 +236,7 @@ func _begin_enter(door_position: Vector3) -> void:
 	await _blend_camera(vehicle.get_node("CameraBase/Camera3D"))
 	driving = true
 	vehicle.set_driver_active(true)
+	get_parent().get_node("Spedometer").car_body = vehicle
 	get_parent().get_node("Spedometer").show()
 	transitioning = false
 

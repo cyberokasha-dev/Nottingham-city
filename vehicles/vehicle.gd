@@ -5,6 +5,9 @@ const STEER_LIMIT = 0.4
 const BRAKE_STRENGTH = 2.0
 
 @export var engine_force_value := 40.0
+@export var brake_force := 30.0
+@export var display_name := "Vehicle"
+@export var electric := false
 
 var previous_speed := linear_velocity.length()
 var _steer_target := 0.0
@@ -12,10 +15,14 @@ var driver_active := false
 
 @onready var desired_engine_pitch: float = $EngineSound.pitch_scale
 
+func _ready() -> void:
+	add_to_group("driveable_vehicles")
+	set_driver_active(false)
+
 func _physics_process(delta: float):
 	if not driver_active:
 		engine_force = 0.0
-		brake = 30.0
+		brake = brake_force
 		steering = move_toward(steering, 0.0, STEER_SPEED * delta)
 		previous_speed = linear_velocity.length()
 		return
@@ -43,7 +50,7 @@ func _physics_process(delta: float):
 		# Increase engine force at low speeds to make the initial acceleration faster.
 		var speed := linear_velocity.length()
 		if speed < 5.0 and not is_zero_approx(speed):
-			engine_force = clampf(engine_force_value * 5.0 / speed, 0.0, 100.0)
+			engine_force = clampf(engine_force_value * 5.0 / speed, 0.0, engine_force_value * 2.5)
 		else:
 			engine_force = engine_force_value
 
@@ -57,7 +64,7 @@ func _physics_process(delta: float):
 		# Increase engine force at low speeds to make the initial reversing faster.
 		var speed := linear_velocity.length()
 		if speed < 5.0 and not is_zero_approx(speed):
-			engine_force = -clampf(engine_force_value * BRAKE_STRENGTH * 5.0 / speed, 0.0, 100.0)
+			engine_force = -clampf(engine_force_value * BRAKE_STRENGTH * 5.0 / speed, 0.0, engine_force_value * 2.5)
 		else:
 			engine_force = -engine_force_value * BRAKE_STRENGTH
 
@@ -67,21 +74,23 @@ func _physics_process(delta: float):
 	steering = move_toward(steering, _steer_target, STEER_SPEED * delta)
 	if Input.is_action_pressed("jump"):
 		engine_force = 0.0
-		brake = 30.0
+		brake = brake_force
 
 	previous_speed = linear_velocity.length()
 
 func set_driver_active(active: bool) -> void:
 	driver_active = active
 	$CameraBase/Camera3D.set_process_input(active)
-	$CPUParticles3D.emitting = active
+	$AudioListener3D.current = active
+	$CPUParticles3D.emitting = active and not electric
 	if active:
 		for body in get_parent().find_children("*", "RigidBody3D", true, false):
 			body.freeze = false
-		$EngineSound.play()
+		if not electric:
+			$EngineSound.play()
 	else:
 		engine_force = 0.0
-		brake = 30.0
+		brake = brake_force
 		$EngineSound.stop()
 
 func park() -> void:
