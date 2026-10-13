@@ -15,6 +15,9 @@ func check_demo():
             push_error("Vehicle did not load: " + choice)
             quit(1)
             return
+        for audio in menu.town.find_children("*", "AudioStreamPlayer3D", true, false):
+            audio.stop()
+        await create_timer(0.1).timeout
         menu._on_back_pressed()
         menu.town = null
         await process_frame
