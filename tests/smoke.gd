@@ -16,7 +16,7 @@ func check_world():
         return
     if not check(not player.driving and player.camera.current and player.visual.visible and player.is_on_floor(), "Spawn standing on foot with the human visible"):
         return
-    if not check(not game.town.get_node("Back").visible, "No car selection menu"):
+    if not check(not game.town.has_node("Back"), "No car selection menu"):
         return
     var skeleton = player.visual.find_child("Skeleton3D", true, false)
     if not check(skeleton.find_bone("hand_l") >= 0 and skeleton.find_bone("index_03_r") >= 0, "Articulated hands and fingers"):
@@ -77,12 +77,55 @@ func check_world():
             await physics_frame
         if not check(not player.driving and not player.transitioning and player.visual.visible and player.camera.current and not vehicle.driver_active and vehicle.freeze and player.is_on_floor(), "Exit restores walking and parks: " + vehicle.display_name):
             return
+    if not check(game.city.houses.size() == 68 and get_nodes_in_group("enterable_houses").size() == 68, "Every residential door has a house"):
+        return
+    for house in [game.city.houses[0],game.city.houses[17],game.city.houses[67]]:
+        player.global_position = house.entrance()
+        player.velocity = Vector3.ZERO
+        if not check(player.nearest_house() == house and player.try_house(house), "Enter " + house.address):
+            return
+        if not check(not player.try_house(house), "Repeated interaction does not interrupt door transition"):
+            return
+        await finish_transition(player)
+        for i in range(20):
+            await physics_frame
+        if not check(player.active_house == house and house.occupied and not house.roof.visible and is_instance_valid(house.interior) and player.is_on_floor(), "House interior is reachable and furnished"):
+            return
+        if not check(not player.try_enter(), "Cannot enter a parked car from inside a house"):
+            return
+        var wall_ray = PhysicsRayQueryParameters3D.create(house.to_global(Vector3(0,1,0)),house.to_global(Vector3(7,1,0)))
+        var wall_hit = game.town.get_world_3d().direct_space_state.intersect_ray(wall_ray)
+        if not check(not wall_hit.is_empty() and house.is_ancestor_of(wall_hit.collider), "House walls stop the player"):
+            return
+        var before_inside = player.global_position
+        player.yaw = house.rotation.y
+        Input.action_press("walk_forward")
+        for i in range(60):
+            await physics_frame
+        Input.action_release("walk_forward")
+        if not check(player.global_position.distance_to(before_inside) > 1.0, "Walk around inside the house"):
+            return
+        player.global_position = house.inside_point()
+        player.velocity = Vector3.ZERO
+        if not check(player.try_house(house), "Leave through the door"):
+            return
+        await finish_transition(player)
+        for i in range(20):
+            await physics_frame
+        if not check(not is_instance_valid(player.active_house) and not house.occupied and house.roof.visible and not player.collider.disabled and player.is_on_floor(), "Exit restores exterior camera and collisions"):
+            return
+    for x in game.city.ROAD_X:
+        for z in game.city.ROAD_Z:
+            var ray = PhysicsRayQueryParameters3D.create(Vector3(x,10,z),Vector3(x,-20,z))
+            var hit = game.town.get_world_3d().direct_space_state.intersect_ray(ray)
+            if not check(not hit.is_empty() and absf(hit.position.y-game.LOT_Y) < 0.02, "All 30 road junctions have level ground"):
+                return
     for audio in game.find_children("*", "AudioStreamPlayer3D", true, false):
         audio.stop()
     await create_timer(0.1).timeout
     game.queue_free()
     await process_frame
-    print("SMOKE_OK: direct on-foot start, six nearby vehicles, nearest selection, independent driving and safe transitions")
+    print("SMOKE_OK: flat connected city, six vehicles, 68 houses, interior walking and safe enter/exit flows")
     call_deferred("quit")
 
 func finish_transition(player):

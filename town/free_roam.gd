@@ -5,12 +5,23 @@ const FACTORY = preload("res://vehicles/vehicle_factory.gd")
 var town: Node3D
 var fleet: Array[VehicleBody3D] = []
 var player: CharacterBody3D
+var city: Node3D
 
 func _ready() -> void:
-	town = preload("res://town/town_scene.tscn").instantiate()
+	town = Node3D.new()
+	town.name = "CityWorld"
 	add_child(town)
-	town.get_node("Back").hide()
-	town.get_node("Spedometer").hide()
+	city = preload("res://town/city.gd").new()
+	city.name = "City"
+	town.add_child(city)
+	var speedometer := Button.new()
+	speedometer.name = "Spedometer"
+	speedometer.set_script(preload("res://spedometer.gd"))
+	speedometer.position = Vector2(20,20)
+	speedometer.custom_minimum_size = Vector2(170,38)
+	speedometer.pressed.connect(speedometer._on_spedometer_pressed)
+	town.add_child(speedometer)
+	speedometer.hide()
 	_build_courtyard()
 	var lineup := [
 		["cybercab",Vector3(0,LOT_Y+0.62,34)],
@@ -32,6 +43,13 @@ func _ready() -> void:
 	player.use_home_position = true
 	player.home_position = Vector3(3,LOT_Y+0.12,38)
 	town.add_child(player)
+	var map_layer := CanvasLayer.new()
+	town.add_child(map_layer)
+	var map := preload("res://town/city_map.gd").new()
+	map.player = player
+	map.city = city
+	map.fleet = fleet
+	map_layer.add_child(map)
 	_settle_parked_fleet()
 
 func _settle_parked_fleet() -> void:

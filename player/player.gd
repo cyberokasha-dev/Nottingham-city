@@ -24,6 +24,8 @@ var current_clip := ""
 var was_grounded := false
 var landing_time := 0.0
 var camera_blend: Camera3D
+var active_house: Node3D
+var entering_house := false
 
 func _ready() -> void:
 	for action in {"walk_forward": KEY_W, "walk_back": KEY_S, "walk_left": KEY_A, "walk_right": KEY_D, "sprint": KEY_SHIFT, "jump": KEY_SPACE, "interact": KEY_E}:
@@ -91,18 +93,22 @@ func _play_clip(clip: String, blend := 0.16) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not driving and not transitioning and event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		yaw -= event.relative.x * 0.005
-		pitch = clampf(pitch - event.relative.y * 0.005, -1.0, 0.3)
+		pitch = clampf(pitch - event.relative.y * 0.005, -1.15, -0.75) if is_instance_valid(active_house) else clampf(pitch - event.relative.y * 0.005, -1.0, 0.3)
 
 func _physics_process(delta: float) -> void:
 	message_time = maxf(0.0, message_time - delta)
 	if transitioning:
-		prompt.text = "Getting into the vehicle…" if not driving else "Getting out…"
+		prompt.text = "Opening the house…" if entering_house else ("Getting into the vehicle…" if not driving else "Getting out…")
 		return
 	if Input.is_action_just_pressed("interact"):
 		if driving:
 			try_exit()
 		else:
-			try_enter()
+			var house := nearest_house()
+			if is_instance_valid(house):
+				try_house(house)
+			else:
+				try_enter()
 	if transitioning:
 		return
 	if driving:
@@ -144,11 +150,14 @@ func _physics_process(delta: float) -> void:
 		else:
 			_play_clip("idle")
 		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look"
-		vehicle = nearest_vehicle()
-		if is_instance_valid(vehicle):
+		var house := nearest_house()
+		vehicle = nearest_vehicle() if not is_instance_valid(active_house) else null
+		if is_instance_valid(house):
+			prompt.text += "\nE: " + ("leave " if house==active_house else "enter ") + house.address
+		elif is_instance_valid(vehicle):
 			prompt.text += "\nE: enter " + vehicle.display_name
 		else:
-			prompt.text += "\nWalk up to any parked vehicle"
+			prompt.text += "\n" + (active_house.address + " · walk to the front door to leave" if is_instance_valid(active_house) else "Walk to a vehicle or a house door · map: top right")
 		if global_position.y < -20:
 			global_position = home_position + Vector3.UP
 			velocity = Vector3.ZERO
@@ -156,7 +165,7 @@ func _physics_process(delta: float) -> void:
 		prompt.text += "\n" + message
 
 func try_enter() -> bool:
-	if transitioning or driving:
+	if transitioning or driving or is_instance_valid(active_house):
 		return false
 	vehicle = nearest_vehicle()
 	if not is_instance_valid(vehicle):
@@ -190,6 +199,68 @@ func nearest_vehicle() -> VehicleBody3D:
 			closest = candidate
 			distance = candidate_distance
 	return closest
+
+func nearest_house() -> Node3D:
+	if is_instance_valid(active_house):
+		if global_position.distance_to(active_house.inside_point()) < 2.7:
+			return active_house
+		return null
+	var closest: Node3D = null
+	var distance := 2.7
+	for house in get_tree().get_nodes_in_group("enterable_houses"):
+		var d := global_position.distance_to(house.entrance())
+		if d < distance:
+			closest = house
+			distance = d
+	return closest
+
+func try_house(house: Node3D) -> bool:
+	if transitioning or driving or house != nearest_house():
+		return false
+	transitioning = true
+	entering_house = true
+	_house_transition(house,house!=active_house)
+	return true
+
+func _house_transition(house: Node3D,entering: bool) -> void:
+	velocity = Vector3.ZERO
+	collider.disabled = true
+	await house.open_door(true)
+	if entering:
+		active_house = house
+		house.set_inside(true)
+		yaw = house.rotation.y
+		pitch = -0.9
+		pivot.get_child(0).collision_mask = 0
+		pivot.get_child(0).spring_length = 6.0
+	else:
+		yaw = house.rotation.y + PI
+	_play_clip("walk")
+	# Align with the open doorway before crossing the wall line.
+	var approach := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	approach.tween_property(self,"global_position",house.entrance() if entering else house.inside_point(),0.22)
+	await approach.finished
+	var travel := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel(true)
+	travel.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	travel.tween_property(self,"global_position",house.inside_point() if entering else house.entrance(),0.55)
+	travel.tween_property(pivot,"rotation:x",pitch if entering else -0.25,0.55)
+	travel.tween_property(pivot,"rotation:y",pivot.rotation.y+wrapf(yaw-pivot.rotation.y,-PI,PI),0.55)
+	travel.tween_property(visual,"rotation:y",visual.rotation.y+wrapf(yaw-visual.rotation.y,-PI,PI),0.55)
+	await travel.finished
+	await house.open_door(false)
+	if not entering:
+		house.set_inside(false)
+		active_house = null
+		pitch = -0.25
+		pivot.get_child(0).collision_mask = 1
+		pivot.get_child(0).spring_length = 5.0
+	collider.disabled = false
+	velocity = Vector3.ZERO
+	was_grounded = true
+	landing_time = 0.0
+	_play_clip("idle")
+	transitioning = false
+	entering_house = false
 
 func _clear_side_position() -> Dictionary:
 	# Check both sides; require ground and enough room for the whole character.
