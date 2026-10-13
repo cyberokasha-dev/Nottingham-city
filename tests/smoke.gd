@@ -21,4 +21,4 @@ func check_demo():
     menu.queue_free()
     await process_frame
     print("SMOKE_OK: all three vehicles load, simulate and return to selection")
-    quit()
+    call_deferred("quit")
