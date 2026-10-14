@@ -2,6 +2,7 @@ extends CharacterBody3D
 ## Autonomous residents share the player's rig, furniture slots and melee rules.
 var person_name := "Resident"
 var riding_service: Node3D
+var crossing_wait := false
 var variant := 1
 var female := false
 var manager: Node3D
@@ -110,7 +111,7 @@ func talk_to(person: CharacterBody3D, delay := 0.0) -> void:
 		dialogue.speak(key)
 
 func begin_conversation(friend: CharacterBody3D) -> void:
-	if dead or friend.dead or state == "talk" or friend.state == "talk":
+	if dead or friend.dead or state == "talk" or friend.state == "talk" or manager.city.traffic.in_carriageway(global_position) or manager.city.traffic.in_carriageway(friend.global_position):
 		return
 	talk_to(friend)
 	friend.talk_to(self,3.4)
@@ -214,6 +215,11 @@ func _physics_process(delta: float) -> void:
 		return
 	guarding = false
 	if state in ["idle","talk"]:
+		var safe: Vector3 = manager.city.traffic.pavement_point(global_position)
+		safe.y = global_position.y
+		if safe.distance_to(global_position)>0.25:
+			_move((safe-global_position).normalized(),delta,3.3)
+			return
 		wait_time -= delta
 		velocity.x = 0
 		velocity.z = 0
@@ -236,6 +242,9 @@ func _physics_process(delta: float) -> void:
 		stuck_time = 0
 		return
 	_move(toward.normalized(),delta,3.2 if variant % 5 == 0 else 1.4 + (variant % 3)*0.13)
+	if crossing_wait:
+		stuck_time = 0
+		return
 	if global_position.distance_to(last_position) < 0.001:
 		stuck_time += delta
 	else:
@@ -259,6 +268,14 @@ func _gravity(delta: float) -> void:
 	move_and_slide()
 
 func _move(direction: Vector3,delta: float,speed: float) -> void:
+	crossing_wait = not manager.city.traffic.pedestrian_may_enter(global_position,direction)
+	if crossing_wait:
+		velocity.x = 0
+		velocity.z = 0
+		_gravity(delta)
+		visual.play("idle")
+		return
+	if manager.city.traffic.in_carriageway(global_position): speed=maxf(speed,3.3)
 	velocity.x = direction.x*speed
 	velocity.z = direction.z*speed
 	_gravity(delta)
@@ -272,6 +289,11 @@ func go_to(path: PackedVector3Array, place: String) -> void:
 	state = "walk"
 
 func _arrive() -> void:
+	var safe: Vector3 = manager.city.traffic.pavement_point(global_position)
+	safe.y = global_position.y
+	if safe.distance_to(global_position)>0.4:
+		go_to(PackedVector3Array([safe]),destination_name)
+		return
 	travel_count += 1
 	state = "idle"
 	wait_time = 4+variant%5

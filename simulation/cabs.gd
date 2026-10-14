@@ -13,14 +13,7 @@ var elapsed := 0.0
 var last_notice := {}
 
 func _ready() -> void:
-	for ix in range(game.city.ROAD_X.size()):
-		for iz in range(game.city.ROAD_Z.size()):
-			var id := ix*10+iz
-			graph.add_point(id,Vector3(game.city.ROAD_X[ix],game.city.traffic.LEVEL,game.city.ROAD_Z[iz]))
-			if ix>0:
-				graph.connect_points(id,id-10)
-			if iz>0:
-				graph.connect_points(id,id-1)
+	_build_lane_graph()
 	for i in range(6):
 		var model := F.traffic_visual("cybercab",Color("b99b58"))
 		model.name = "Aurora"+str(i+1)
@@ -72,39 +65,127 @@ func curb(point: Vector3) -> Vector3:
 			best = p
 	return best
 
-func path_between(from: Vector3, destination: Vector3) -> PackedVector3Array:
-	var start := curb(from)
-	var finish := curb(destination)
-	if start.distance_to(finish)<0.1:
-		return PackedVector3Array([Vector3(from.x,game.city.traffic.LEVEL,from.z)])
-	if absf(start.x-finish.x)<0.1 or absf(start.z-finish.z)<0.1:
-		var direction := (finish-start).normalized()
-		var left := Vector3(direction.z,0,-direction.x)*2.8
-		return PackedVector3Array([start+left,finish+left])
-	var raw := PackedVector3Array([start])
-	var route := graph.get_point_path(graph.get_closest_point(start),graph.get_closest_point(finish))
-	for p in route:
-		if raw[-1].distance_to(p)>0.1:
-			raw.append(p)
-	if raw[-1].distance_to(finish)>0.1:
-		raw.append(finish)
-	# Orthogonal lead-ins avoid driving diagonally across houses to a junction.
-	var centers := PackedVector3Array()
-	for i in range(raw.size()):
-		if i>0 and absf(raw[i].x-raw[i-1].x)>0.01 and absf(raw[i].z-raw[i-1].z)>0.01:
-			centers.append(Vector3(raw[i].x,start.y,raw[i-1].z))
-		centers.append(raw[i])
-	var path := PackedVector3Array()
-	for i in range(centers.size()-1):
-		var direction := (centers[i+1]-centers[i]).normalized()
-		var left := Vector3(direction.z,0,-direction.x)*2.8
-		var a := centers[i]+left
-		var b := centers[i+1]+left
-		if path.is_empty():
-			path.append(a)
-		path.append(b)
-	if path.is_empty():
-		path.append(start+Vector3(2.8,0,0))
+const DIRECTIONS := [Vector3(0,0,1),Vector3(1,0,0),Vector3(0,0,-1),Vector3(-1,0,0)]
+const TURN_RADIUS := 10.0
+
+func _lane_id(ix: int, iz: int, heading: int, outgoing: bool) -> int:
+	return (ix*game.city.ROAD_Z.size()+iz)*8+heading*2+int(outgoing)
+
+func _build_lane_graph() -> void:
+	# Directed entry/exit lanes: no reversing, lane swaps or U-turns in a route.
+	graph.clear()
+	for ix in range(game.city.ROAD_X.size()):
+		for iz in range(game.city.ROAD_Z.size()):
+			var center := Vector3(game.city.ROAD_X[ix],game.city.traffic.LEVEL,game.city.ROAD_Z[iz])
+			for heading in range(4):
+				var direction: Vector3 = DIRECTIONS[heading]
+				var left := Vector3(direction.z,0,-direction.x)*2.8
+				graph.add_point(_lane_id(ix,iz,heading,false),center-direction*TURN_RADIUS+left)
+				graph.add_point(_lane_id(ix,iz,heading,true),center+direction*TURN_RADIUS+left)
+	for ix in range(game.city.ROAD_X.size()):
+		for iz in range(game.city.ROAD_Z.size()):
+			for heading in range(4):
+				for next_heading in range(4):
+					if next_heading!=(heading+2)%4:
+						graph.connect_points(_lane_id(ix,iz,heading,false),_lane_id(ix,iz,next_heading,true),false)
+				var nx := ix+int(DIRECTIONS[heading].x)
+				var nz := iz+int(DIRECTIONS[heading].z)
+				if nx>=0 and nx<game.city.ROAD_X.size() and nz>=0 and nz<game.city.ROAD_Z.size():
+					graph.connect_points(_lane_id(ix,iz,heading,true),_lane_id(nx,nz,heading,false),false)
+
+func _road_anchor(point: Vector3, facing := Vector3.ZERO) -> Dictionary:
+	var center := curb(point)
+	var vertical: bool = game.city.ROAD_X.has(center.x)
+	var side: float = point.x-center.x if vertical else center.z-point.z
+	var heading := (0 if side>=0 else 2) if vertical else (1 if side>=0 else 3)
+	if facing.length()>0.5:
+		var best := -INF
+		for h in range(4):
+			if (h%2==0)!=vertical: continue
+			var dot: float = DIRECTIONS[h].dot(facing)
+			if dot>best:
+				best = dot
+				heading = h
+	var direction: Vector3 = DIRECTIONS[heading]
+	var left := Vector3(direction.z,0,-direction.x)
+	return {"center":center,"heading":heading,"direction":direction,"point":center+left*2.8}
+
+func _safe_destination(point: Vector3) -> Dictionary:
+	var anchor := _road_anchor(point)
+	var vertical: bool = int(anchor.heading)%2==0
+	var crossings: Array = game.city.ROAD_Z if vertical else game.city.ROAD_X
+	var coordinate: float = anchor.center.z if vertical else anchor.center.x
+	var closest := INF
+	var selected := coordinate
+	for i in range(crossings.size()-1):
+		var candidate := clampf(coordinate,float(crossings[i])+18,float(crossings[i+1])-18)
+		if absf(candidate-coordinate)<closest:
+			closest = absf(candidate-coordinate)
+			selected = candidate
+	if vertical:
+		anchor.center.z = selected
+		anchor.point.z = selected
+	else:
+		anchor.center.x = selected
+		anchor.point.x = selected
+	return anchor
+
+func path_between(from: Vector3, destination: Vector3, facing := Vector3.ZERO) -> PackedVector3Array:
+	var start := _road_anchor(from,facing)
+	var finish := _safe_destination(destination)
+	var direction: Vector3 = start.direction
+	var offset: Vector3 = finish.point-start.point
+	if int(start.heading)==int(finish.heading) and offset.cross(direction).length()<0.1 and offset.dot(direction)>=-0.1:
+		return PackedVector3Array([start.point,finish.point])
+	var entry := -1
+	var exit := -1
+	var entry_gap := INF
+	var exit_gap := INF
+	for id in graph.get_point_ids():
+		var h := int(id/2)%4
+		var position := graph.get_point_position(id)
+		if id%2==0 and h==int(start.heading):
+			var delta: Vector3 = position-start.point
+			var ahead := delta.dot(start.direction)
+			if delta.cross(start.direction).length()<0.1 and ahead>=-0.1 and ahead<entry_gap:
+				entry = id
+				entry_gap = ahead
+		if id%2==1 and h==int(finish.heading):
+			var delta: Vector3 = finish.point-position
+			var ahead := delta.dot(finish.direction)
+			if delta.cross(finish.direction).length()<0.1 and ahead>=-0.1 and ahead<exit_gap:
+				exit = id
+				exit_gap = ahead
+	# When a car is already inside a junction, join its outgoing lane first.
+	if entry<0:
+		for id in graph.get_point_ids():
+			if id%2==1 and int(id/2)%4==int(start.heading):
+				var delta: Vector3 = graph.get_point_position(id)-start.point
+				if delta.cross(direction).length()<0.1 and delta.dot(direction)>=-0.1 and delta.length()<entry_gap:
+					entry = id
+					entry_gap = delta.length()
+	if entry<0 or exit<0:
+		return PackedVector3Array() # Dispatcher reports an unavailable road, never cuts across homes.
+	var ids := graph.get_id_path(entry,exit)
+	if ids.is_empty(): return PackedVector3Array()
+	var path := PackedVector3Array([start.point])
+	for i in range(ids.size()):
+		var point := graph.get_point_position(ids[i])
+		if i>0 and ids[i-1]%2==0 and ids[i]%2==1 and int(ids[i-1]/8)==int(ids[i]/8):
+			var old_direction: Vector3 = DIRECTIONS[int(ids[i-1]/2)%4]
+			var new_direction: Vector3 = DIRECTIONS[int(ids[i]/2)%4]
+			if old_direction.dot(new_direction)<0.5:
+				var previous := path[-1]
+				var control := previous+old_direction*TURN_RADIUS
+				control += Vector3(new_direction.z,0,-new_direction.x)*2.8
+				# Intersect the entry/exit lane tangents to keep the arc on asphalt.
+				control = Vector3(point.x,point.y,previous.z) if absf(old_direction.x)>0.9 else Vector3(previous.x,point.y,point.z)
+				for step in range(1,9):
+					var t := step/8.0
+					path.append((1-t)*(1-t)*previous+2*(1-t)*t*control+t*t*point)
+				continue
+		if path[-1].distance_to(point)>0.05: path.append(point)
+	if path[-1].distance_to(finish.point)>0.05: path.append(finish.point)
 	return path
 
 func quote(person: Node3D, destination: Vector3) -> int:
@@ -150,18 +231,23 @@ func _dispatch() -> void:
 			continue
 		var selected := -1
 		var nearest := INF
+		var selected_path := PackedVector3Array()
 		for i in range(cars.size()):
 			if cars[i].state=="idle" and (trip.person.get("controlled")!=null or i>=2):
-				var gap: float = cars[i].node.global_position.distance_to(trip.pickup)
-				if gap<nearest:
-					nearest = gap
+				var candidate := path_between(cars[i].node.global_position,trip.pickup,cars[i].node.global_basis.z)
+				if candidate.is_empty(): continue
+				var cost: float = cars[i].node.global_position.distance_to(candidate[0])
+				for j in range(1,candidate.size()): cost+=candidate[j-1].distance_to(candidate[j])
+				if cost<nearest:
+					nearest = cost
 					selected = i
+					selected_path = candidate
 		if selected<0:
 			return
 		var car: Dictionary = cars[selected]
 		car.booking = key
 		car.state = "pickup"
-		car.path = path_between(car.node.global_position,trip.pickup)
+		car.path = selected_path
 		car.index = 0
 		trip.car = selected
 		trip.state = "approaching"
@@ -184,15 +270,19 @@ func unlock(person: Node3D, pin: String) -> bool:
 			trip.locked_until = elapsed+10
 			trip.attempts = 0
 		return false
+	var car: Dictionary = cars[int(trip.car)]
+	var journey_path := path_between(car.node.global_position,trip.destination.point,car.node.global_basis.z)
+	if journey_path.is_empty():
+		economy.last_error = "This destination has no reachable road entrance. Choose another destination."
+		return false
 	if not economy.hold_fare(person,int(trip.fare)):
 		cancel(person)
 		return false
-	var car: Dictionary = cars[int(trip.car)]
 	trip.state = "riding"
 	car.state = "boarding"
 	car.board_clock = 0.0
 	trip.state = "boarding"
-	car.path = path_between(car.node.global_position,trip.destination.point)
+	car.path = journey_path
 	car.index = 0
 	person.riding_service = self
 	person.set_meta("cab_car",int(trip.car))
@@ -213,7 +303,7 @@ func cancel(person: Node3D) -> bool:
 	if int(trip.car)>=0:
 		var car: Dictionary = cars[int(trip.car)]
 		if car.state in ["waiting","pickup"]:
-			car.node.position += car.node.global_basis.x*2.7
+			_park_at_curb(car)
 		cars[int(trip.car)].state = "idle"
 		cars[int(trip.car)].booking = ""
 		cars[int(trip.car)].speed = 0.0
@@ -277,7 +367,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		var target: Vector3 = path[int(car.index)]
 		var offset: Vector3 = target-car.node.global_position
-		if offset.length()<0.15:
+		if offset.length()<0.05:
 			car.index = int(car.index)+1
 			continue
 		var direction := offset.normalized()
@@ -294,7 +384,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
 		car.node.global_position += direction*travel
-		car.node.rotation.y = lerp_angle(car.node.rotation.y,atan2(direction.x,direction.z),minf(1,delta*6))
+		car.node.rotation.y = atan2(direction.x,direction.z)
 		for wheel in car.node.get_meta("wheels"):
 			wheel.rotation.x += travel/0.36
 		if trip.state=="riding":
@@ -310,7 +400,7 @@ func _finish(car: Dictionary, trip: Dictionary) -> void:
 	car.node.get_node("CabDialogue").say(person,"arrival")
 	person.riding_service = null
 	person.set_meta("cab_waiting",false)
-	car.node.global_position += car.node.global_basis.x*2.7
+	_park_at_curb(car)
 	person.global_position = car.node.global_position+car.node.global_basis.x*3.5+Vector3(0,0.15,0)
 	person.visual.show()
 	person.collider.set_deferred("disabled",false)
@@ -387,22 +477,13 @@ func skip_journey(person: Node3D) -> bool:
 	var trip: Dictionary = bookings[key]
 	var car: Dictionary = cars[int(trip.car)]
 	# Finish the existing receipt once; time skipping never creates a second fare.
-	var destination_path := path_between(car.node.global_position,trip.destination.point)
+	var destination_path := path_between(car.node.global_position,trip.destination.point,car.node.global_basis.z)
+	if destination_path.is_empty(): return false
 	var end := destination_path[-1]
 	if destination_path.size()>1:
 		var forward := (end-destination_path[-2]).normalized()
 		car.node.rotation.y = atan2(forward.x,forward.z)
-	# Use a clear curb space so skipping cannot place the cab inside another car.
-	var left: Vector3 = car.node.global_basis.x
-	end += left*2.7
-	for step in range(10):
-		var clear := true
-		for other in game.city.traffic.vehicle_nodes():
-			if other!=car.node and other.visible and other.global_position.distance_to(end)<8:
-				clear = false
-		if clear: break
-		end += car.node.global_basis.z*7.0
-	car.node.global_position = end-left*2.7
+	car.node.global_position = end
 	_finish(car,trip)
 	return true
 
@@ -413,3 +494,21 @@ func talk(person: Node3D, topic: String) -> bool:
 		return false
 	cars[int(bookings[key].car)].node.get_node("CabDialogue").say(person,topic)
 	return true
+
+func _park_at_curb(car: Dictionary) -> void:
+	var anchor := _road_anchor(car.node.global_position,car.node.global_basis.z)
+	var direction: Vector3 = anchor.direction
+	var left := Vector3(direction.z,0,-direction.x)
+	var base: Vector3 = anchor.center+left*5.5
+	for step in [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6]:
+		var candidate: Vector3 = base+direction*float(step)*7.0
+		if absf(candidate.x)>155 or candidate.z< -140 or candidate.z>155: continue
+		var junction := false
+		for x in game.city.ROAD_X:
+			for z in game.city.ROAD_Z:
+				if absf(candidate.x-x)<15 and absf(candidate.z-z)<15: junction=true
+		if junction: continue
+		if game.city.traffic.space_clear(candidate,direction,car.node):
+			car.node.global_position = candidate
+			car.node.rotation.y = atan2(direction.x,direction.z)
+			return

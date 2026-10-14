@@ -8,7 +8,7 @@ func check_party() -> void:
     game.economy.enabled = false
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
-    game.city.transport.economy = null
+    game.city.transport.timetable_enabled = false
     for i in range(150):
         await physics_frame
     var original = game.player
@@ -161,11 +161,11 @@ func check_party() -> void:
     scene.apply_effect("threat")
     if not check(target.combat_time > 0 and target.opponent == original, "Threatening reply changes NPC behaviour"):
         return
-    for sound in game.find_children("*","AudioStreamPlayer",true,false):
+    game.process_mode=Node.PROCESS_MODE_DISABLED
+    for sound in game.find_children("*","AudioStreamPlayer",true,false)+game.find_children("*","AudioStreamPlayer3D",true,false):
         sound.stop()
-    for sound in game.find_children("*","AudioStreamPlayer3D",true,false):
-        sound.stop()
-    await create_timer(0.1).timeout
+        sound.stream=null
+    await create_timer(0.2).timeout
     game.queue_free()
     await process_frame
     print("PARTY_DIALOGUE_OK: personalized starter, four persistent characters, wheel, pose, car switching and consequential voiced scenes")

@@ -96,6 +96,20 @@ jobs:
           godot --headless --path . --script res://tests/refinements.gd 2>&1 | tee /tmp/refinements.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/refinements.log; then exit 1; fi
           grep -q 'REFINEMENTS_OK' /tmp/refinements.log
+      - name: Check five-second signals, directed cabs, strict fares and on-board Quran
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/traffic_and_audio.gd 2>&1 | tee /tmp/traffic-audio.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/traffic-audio.log; then exit 1; fi
+          grep -q 'TRAFFIC_AUDIO_OK' /tmp/traffic-audio.log
+      - name: Check a complete Aurora journey with real city traffic and NPC cabs
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --fixed-fps 30 --script res://tests/live_service_flow.gd 2>&1 | tee /tmp/live-service.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/live-service.log; then exit 1; fi
+          grep -q 'LIVE_SERVICE_FLOW_OK' /tmp/live-service.log
       - name: Export browser game
         shell: bash
         run: |
@@ -114,6 +128,7 @@ jobs:
           cp vehicles/models/SOURCES.md build/web/VEHICLE-SOURCES.md
           cp actors/voices/NOTICE.md build/web/VOICE-CREDITS.md
           cp transport/SOURCES.md build/web/TRANSPORT-SOURCES.md
+          cp transport/recitations/NOTICE.md build/web/RECITATION-CREDITS.md
           cp actors/voices/ALBA-MODEL-CARD.md build/web/ALBA-MODEL-CARD.md
           cp actors/voices/JOE-MODEL-CARD.md build/web/JOE-MODEL-CARD.md
           touch build/web/.nojekyll

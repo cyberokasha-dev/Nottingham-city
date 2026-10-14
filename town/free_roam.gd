@@ -13,6 +13,7 @@ var conversation: CanvasLayer
 var economy: Node
 var cabs: Node3D
 var phone: CanvasLayer
+var bus_recitation: CanvasLayer
 
 func _ready() -> void:
 	town = Node3D.new()
@@ -74,6 +75,10 @@ func _ready() -> void:
 	phone = preload("res://simulation/phone.gd").new()
 	phone.game = self
 	add_child(phone)
+	bus_recitation = preload("res://transport/bus_recitation.gd").new()
+	bus_recitation.game = self
+	add_child(bus_recitation)
+	city.transport.recitation = bus_recitation
 	_settle_parked_fleet()
 
 func _settle_parked_fleet() -> void:

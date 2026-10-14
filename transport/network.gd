@@ -2,6 +2,8 @@ extends Node3D
 const G = preload("res://transport/geometry.gd")
 var traffic: Node3D
 var economy: Node
+var recitation: CanvasLayer
+var timetable_enabled := true
 var elapsed := 0.0
 var departures := {}
 var queue_clock := 0.0
@@ -22,11 +24,15 @@ func _ready() -> void:
 			bus.manager = self
 			bus.route = route
 			bus.distance = float(route.length)*i/3.0
+			bus.set_meta("quran_seed",buses.size())
 			add_child(bus)
 			buses.append(bus)
 	for bus in buses:
 		for attempt in range(120):
 			var clear := true
+			for x in traffic.ROAD_X:
+				for z in traffic.ROAD_Z:
+					if absf(bus.position.x-x)<14 and absf(bus.position.z-z)<14: clear=false
 			for other in buses:
 				if other==bus: break
 				if bus.global_position.distance_to(other.global_position)<14: clear=false
@@ -168,7 +174,7 @@ func exchange(bus: Node3D, stop: Dictionary) -> void:
 	bus.passengers = bus.manifest.size()
 
 func board_next(bus: Node3D) -> bool:
-	if bus.stop_index<0 or bus.manifest.size()>=20 or bus.dwell_elapsed>=58:
+	if economy==null or bus.stop_index<0 or bus.manifest.size()>=20 or bus.dwell_elapsed>=58:
 		return false
 	var stop: Dictionary = bus.route.stops[bus.stop_index]
 	for person in stop.waiting.duplicate():

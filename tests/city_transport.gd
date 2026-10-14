@@ -15,7 +15,7 @@ func run_checks() -> void:
     game.economy.enabled = false
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
-    game.city.transport.economy = null
+    game.city.transport.timetable_enabled = false
     for i in range(5):
         await physics_frame
     var network = game.city.transport
@@ -48,7 +48,7 @@ func run_checks() -> void:
     # Isolate the bus to test rules without a queue obscuring red-light behaviour.
     var fake_traffic = Node3D.new()
     fake_traffic.set_script(preload("res://town/traffic.gd"))
-    fake_traffic.clock = 28.0
+    fake_traffic.clock = 4.5
     var allowed: float = fake_traffic.allowed_travel(Vector3(42.8,traffic.LEVEL,-140),Vector3.BACK,100.0,6.5,bus)
     if not check(is_equal_approx(allowed,8.0),"Bus clamps at red light before junction"):
         return

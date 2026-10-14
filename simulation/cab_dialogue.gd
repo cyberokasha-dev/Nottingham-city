@@ -18,6 +18,7 @@ func _ready() -> void:
 
 func say(person: Node3D, topic: String) -> void:
 	if cooldown>0 and topic not in ["welcome","arrival"]: return
+	voice.stop()
 	if quiet and topic=="arrival": return
 	var key := topic+"_"+str(personality)
 	if not CATALOG.LINES.has(key): return

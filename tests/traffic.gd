@@ -13,7 +13,7 @@ func check_traffic() -> void:
     for item in traffic.cars:
         assert(is_equal_approx(item.node.position.y, traffic.LEVEL), "Cars start on the road")
         assert(item.offset * item.direction > 0 if item.vertical else item.offset * item.direction < 0, "UK left-hand lanes")
-    for phase in [0.0,26.0,27.0,28.0,32.0,33.9]:
+    for phase in [0.0,4.0,4.25,4.5,8.5,8.99]:
         traffic.clock = phase
         traffic._update_lamps()
         assert(not (traffic._green(true) and traffic._green(false)), "No conflicting green lights")
@@ -34,7 +34,7 @@ func check_traffic() -> void:
     assert(is_equal_approx(car.distance, -152.0), "Stop twelve metres before crossing")
     traffic._process(0.1)
     assert(is_equal_approx(car.distance, -152.0), "Wait while red")
-    traffic.clock = 28.0
+    traffic.clock = 4.5
     traffic._process(0.1)
     assert(car.distance > -152.0, "Move when green")
     car.distance = -145.0
@@ -42,7 +42,7 @@ func check_traffic() -> void:
     traffic._process(0.1)
     assert(car.distance > -145.0, "Clear junction when already past stop line")
     car.distance = 156.9
-    traffic.clock = 28.0
+    traffic.clock = 4.5
     traffic._process(0.1)
     assert(is_equal_approx(car.distance, -157.0), "Wrap road boundary")
     traffic.queue_free()

@@ -10,7 +10,7 @@ func check_world():
     game.economy.enabled = false
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
-    game.city.transport.economy = null
+    game.city.transport.timetable_enabled = false
     for i in range(150):
         await physics_frame
     if not check(game.has_node("TruckTown/Player") or is_instance_valid(game.player), "Launch directly into the world"):

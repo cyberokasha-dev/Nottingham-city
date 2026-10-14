@@ -9,7 +9,7 @@ func check_actions() -> void:
     game.economy.enabled = false
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
-    game.city.transport.economy = null
+    game.city.transport.timetable_enabled = false
     for i in range(150):
         await physics_frame
     var player = game.player

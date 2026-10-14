@@ -3,7 +3,9 @@ extends Node3D
 const ROAD_X := [-140.0,-80.0,-40.0,40.0,80.0,140.0]
 const ROAD_Z := [-120.0,-60.0,16.0,80.0,140.0]
 const LEVEL := -5.02
-const CYCLE := 34.0
+const CYCLE := 9.0
+const GREEN_SECONDS := 4.0
+const HALF_CYCLE := 4.5
 var clock := 0.0
 var cars: Array[Dictionary] = []
 var signals: Array[Dictionary] = []
@@ -86,6 +88,8 @@ func _ready() -> void:
 		for attempt in range(100):
 			var position := lane_position(item,float(item.distance))
 			var clear := true
+			for crossing in (ROAD_Z if item.vertical else ROAD_X):
+				if absf(float(item.distance)-float(crossing))<14: clear=false
 			for other in cars:
 				if other==item: break
 				if position.distance_to(lane_position(other,float(other.distance)))<6.2: clear=false
@@ -148,11 +152,11 @@ func _process(delta: float) -> void:
 			node.rotation.y = PI/2.0 if direction>0 else -PI/2.0
 
 func _green(vertical: bool) -> bool:
-	return clock<26.0 if vertical else (clock>=28.0 and clock<32.0)
+	return clock<GREEN_SECONDS if vertical else (clock>=HALF_CYCLE and clock<HALF_CYCLE+GREEN_SECONDS)
 
 func _update_lamps() -> void:
 	var phase := 0
-	for boundary in [26.0,27.0,28.0,32.0,33.0]:
+	for boundary in [4.0,4.25,4.5,8.5,8.75]:
 		if clock>=boundary:
 			phase += 1
 	if phase == last_lamp_phase:
@@ -161,8 +165,8 @@ func _update_lamps() -> void:
 	for junction_signal in signals:
 		var vertical: bool = junction_signal.vertical
 		var green := _green(vertical)
-		var amber := (clock>=26.0 and clock<27.0) if vertical else (clock>=32.0 and clock<33.0)
-		var red_amber := clock>=33.0 if vertical else (clock>=27.0 and clock<28.0)
+		var amber := (clock>=4.0 and clock<4.25) if vertical else (clock>=8.5 and clock<8.75)
+		var red_amber := clock>=8.75 if vertical else (clock>=4.25 and clock<4.5)
 		var indices := [0 if not green and not amber else 1,2 if amber or red_amber else 3,4 if green else 5]
 		for i in range(3):
 			junction_signal.lamps[i].material_override = lamp_materials[indices[i]]
@@ -205,8 +209,17 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 		var distance := pos.z if vertical else pos.x
 		for crossing in (ROAD_Z if vertical else ROAD_X):
 			var ahead: float = (float(crossing)-distance)*signf(axis)
-			if ahead>=11.99 and not _green(vertical):
-				travel = minf(travel,maxf(0,ahead-12.0))
+			if ahead>=11.99:
+				var junction := Vector3(pos.x if vertical else float(crossing),LEVEL,float(crossing) if vertical else pos.z)
+				# Use road centres, not the offset lane coordinate.
+				if vertical:
+					for x in ROAD_X:
+						if absf(pos.x-x)<6: junction.x=x; break
+				else:
+					for z in ROAD_Z:
+						if absf(pos.z-z)<6: junction.z=z; break
+				if not _green(vertical) or _junction_busy(junction,direction,ignore):
+					travel = minf(travel,maxf(0,ahead-12.0))
 	var obstacles := vehicle_nodes()
 	for other in obstacles:
 		if other == ignore or not other.visible:
@@ -301,3 +314,55 @@ func vehicle_nodes() -> Array[Node3D]:
 		for body in get_tree().get_nodes_in_group("driveable_vehicles"):
 			if is_instance_valid(body): nodes.append(body)
 	return nodes
+
+func _junction_busy(center: Vector3, _heading: Vector3, ignore: Node3D) -> bool:
+	# A vehicle commits when its centre passes the twelve-metre stop line.
+	# Keep the whole box exclusive until it clears. Right-turning buses can
+	# otherwise trap an opposing car halfway through their swept turn.
+	for node in vehicle_nodes():
+		if node==ignore or not node.visible: continue
+		if absf(node.global_position.x-center.x)<11.9 and absf(node.global_position.z-center.z)<11.9:
+			return true
+	return false
+
+func pavement_point(point: Vector3) -> Vector3:
+	var safe := point
+	for x in ROAD_X:
+		if absf(point.x-x)<6.4: safe.x=x+(7.7 if point.x>=x else -7.7)
+	for z in ROAD_Z:
+		if absf(point.z-z)<6.4: safe.z=z+(7.7 if point.z>=z else -7.7)
+	return safe
+
+func pedestrian_may_enter(point: Vector3, movement: Vector3) -> bool:
+	# People already crossing always finish; new crossings yield before the curb.
+	for vertical in [true,false]:
+		for road in (ROAD_X if vertical else ROAD_Z):
+			var offset: float = (point.x if vertical else point.z)-float(road)
+			var across: float = movement.x if vertical else movement.z
+			if absf(offset)>6.0 and absf(offset)<8.0 and offset*across<0 and absf(across)>0.35 and _green(vertical):
+				return false
+	return true
+
+func in_carriageway(point: Vector3) -> bool:
+	for x in ROAD_X:
+		if absf(point.x-x)<6: return true
+	for z in ROAD_Z:
+		if absf(point.z-z)<6: return true
+	return false
+
+func space_clear(pos: Vector3, direction: Vector3, ignore: Node3D) -> bool:
+	var right := Vector3(direction.z,0,-direction.x)
+	for other in vehicle_nodes():
+		if other==ignore or not other.visible or absf(other.global_position.y-pos.y)>3: continue
+		var offset: Vector3 = other.global_position-pos
+		if offset.length()>12: continue
+		var forward := other.global_basis.z.normalized()
+		var side := Vector3(forward.z,0,-forward.x)
+		var length := 5.2 if other.is_in_group("city_buses") else 2.3
+		var width := 1.3 if other.is_in_group("city_buses") else 1.0
+		var separated := false
+		for axis in [direction,right,forward,side]:
+			var radius: float = absf(direction.dot(axis))*2.3+absf(right.dot(axis))*1.0+absf(forward.dot(axis))*length+absf(side.dot(axis))*width+0.3
+			if absf(offset.dot(axis))>radius: separated=true; break
+		if not separated: return false
+	return true

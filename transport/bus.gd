@@ -83,7 +83,7 @@ func advance(delta: float) -> void:
 		speed = 0
 		model.animate_doors(move_toward(model.door_fraction,0,delta*1.6))
 		if model.door_fraction <= 0:
-			if stop_index==0 and manager.economy!=null:
+			if stop_index==0 and manager.timetable_enabled:
 				next_departure = manager.reserve_departure(route.number)
 				state = "depot"
 				hide()
@@ -144,7 +144,10 @@ func board(person: CharacterBody3D) -> bool:
 		return false
 	if person.get("riding_service")!=null or person.riding_bus!=null or person.dead or person.driving or person.transitioning or person.resting != "" or is_instance_valid(person.active_house):
 		return false
-	if manager.economy!=null and not manager.economy.charge(person,200,"Bus "+route.number+" fare"):
+	if manager.economy==null:
+		person._notify("Bus payment system is not ready. Please wait.")
+		return false
+	if not manager.economy.charge(person,200,"Bus "+route.number+" fare"):
 		person._notify("Bus fare £2.00 — not enough money")
 		return false
 	rider = person
@@ -153,7 +156,8 @@ func board(person: CharacterBody3D) -> bool:
 	person.collider.set_deferred("disabled",true)
 	person.visual.visible = false
 	person.global_position = seat_position()
-	person._notify("Route "+route.number+" • "+route.name+" — E to request next stop")
+	person._notify("Route "+route.number+" • "+route.name+" • £2 fare paid — E: request stop · U: Quran on/off")
+	if is_instance_valid(manager.recitation): manager.recitation.update_rider()
 	return true
 
 func leave(person: CharacterBody3D) -> bool:
@@ -167,4 +171,5 @@ func leave(person: CharacterBody3D) -> bool:
 	person.collider.set_deferred("disabled",false)
 	person.invulnerability = 1.0
 	rider = null
+	if is_instance_valid(manager.recitation): manager.recitation.update_rider()
 	return true

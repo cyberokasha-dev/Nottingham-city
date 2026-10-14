@@ -1,0 +1,110 @@
+[
+  {
+    "surah": 103,
+    "name": "Al-Asr",
+    "file": "103.ogg",
+    "duration": 16.169796,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/103.mp3",
+    "source_sha256": "33ca9c01621066f78f7c95e659a7ecfcee3caef7ab7bb12a6eb54c89ba9241d8",
+    "sha256": "cd6d824f2f69590fed9cd4826c321b7ad17aedb74b9ad394e3294ba2b2082bec"
+  },
+  {
+    "surah": 104,
+    "name": "Al-Humazah",
+    "file": "104.ogg",
+    "duration": 36.257959,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/104.mp3",
+    "source_sha256": "9c7f7fb1a786b636192d820bf26ceece9ab0514b5eeba6094b7178f75331bf51",
+    "sha256": "536ea68ecd52c64f11071666c7bf8a2f804a1c578a5bab30f936c47570df7a45"
+  },
+  {
+    "surah": 105,
+    "name": "Al-Fil",
+    "file": "105.ogg",
+    "duration": 29.074286,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/105.mp3",
+    "source_sha256": "0c8f869da782b80416e0b03fb4907cd242aea3b714aa471e7390151c95d0ab25",
+    "sha256": "8f1f2d3f45b38ba2f5a37f963e44cb4e5ebfe0b382f5caf1c0323ac5af010195"
+  },
+  {
+    "surah": 106,
+    "name": "Quraysh",
+    "file": "106.ogg",
+    "duration": 27.219592,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/106.mp3",
+    "source_sha256": "d8553e989cf60d427c537c6151febd9e4befc2ce9d2cf626431137e5bbca4d14",
+    "sha256": "0226dd07087c8e182fbb677f453bcdd5b6fbcb33075656ab5d85cd7f8a5c0850"
+  },
+  {
+    "surah": 107,
+    "name": "Al-Maun",
+    "file": "107.ogg",
+    "duration": 31.137959,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/107.mp3",
+    "source_sha256": "63b9afddc7998a3562b70b61b0539b221c683ba11caa164236d24c4b92a38b91",
+    "sha256": "91bf54013533a9519dfb5bf8582390c24c08f6f6e934dc7c6d4a276f839a17ae"
+  },
+  {
+    "surah": 108,
+    "name": "Al-Kawthar",
+    "file": "108.ogg",
+    "duration": 16.091429,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/108.mp3",
+    "source_sha256": "9fc8ba8ae4e4bb618229722f5c4d4d567a832afd8cd1cbb249f920ce2d6ecb3d",
+    "sha256": "f430a615f21e86b67c1cb187ef0aafdf1efe5598b3ec5a8e9e2cf04cd30b2872"
+  },
+  {
+    "surah": 109,
+    "name": "Al-Kafirun",
+    "file": "109.ogg",
+    "duration": 29.074286,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/109.mp3",
+    "source_sha256": "c0ab842733049898fe5bed324a8adbd929051f29fc56fbcfa361fdffec0c5979",
+    "sha256": "2ba2bef15603eeffa571e86805761ce58a2e9f244250b8c4387ddeafe87e9bb0"
+  },
+  {
+    "surah": 110,
+    "name": "An-Nasr",
+    "file": "110.ogg",
+    "duration": 23.510204,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/110.mp3",
+    "source_sha256": "7caad3ea8df82645bfedcdd2559dfe9354dd0609e347ef2ac7af26d3fa3e6bba",
+    "sha256": "7b5f2f8b487b9b249fbb0e251c1153f18ead56fd1b1e739fb8f1d83d6b45cc97"
+  },
+  {
+    "surah": 111,
+    "name": "Al-Masad",
+    "file": "111.ogg",
+    "duration": 25.730612,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/111.mp3",
+    "source_sha256": "2b9fbc530853203a0743ee5e0121b31b7f49eb4fc627158d4d5f7d1ca99bc2c2",
+    "sha256": "63e4a9c6b5a0d7e97bd995e119a2a7120490a8774e5cb7599dd16704f76ab579"
+  },
+  {
+    "surah": 112,
+    "name": "Al-Ikhlas",
+    "file": "112.ogg",
+    "duration": 14.053878,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/112.mp3",
+    "source_sha256": "63a7f18d53983ce3259ff534e1128cb1c028da182ef2b3730ea0b369920ccdd1",
+    "sha256": "d0218eb017670b1b6d50edce36349cd2fadcdc0d69e75c5f857bc237ef926d0a"
+  },
+  {
+    "surah": 113,
+    "name": "Al-Falaq",
+    "file": "113.ogg",
+    "duration": 23.04,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/113.mp3",
+    "source_sha256": "2c62f9dff1015315095d38d3d3576448f291ca166e806f910d0c57515d633798",
+    "sha256": "a1bad9380c2ba9b48f055db3c51222f53c16af963ede8445ac20bb0a9fea431b"
+  },
+  {
+    "surah": 114,
+    "name": "An-Nas",
+    "file": "114.ogg",
+    "duration": 25.103673,
+    "source": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/114.mp3",
+    "source_sha256": "dbf76a1dcddddc4ef23a2d339be0ffefdac7d27b4ef1f287624c2a0be381d5da",
+    "sha256": "25af5e8da81be252eaa1d2b3ab313d843ba3e37fe0e9bdac4ed4f51dc0c1c2de"
+  }
+]
