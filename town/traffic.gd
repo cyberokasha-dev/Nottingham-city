@@ -4,7 +4,7 @@ const ROAD_X := [-140.0,-80.0,-40.0,40.0,80.0,140.0]
 const ROAD_Z := [-120.0,-60.0,16.0,80.0,140.0]
 # Signals are reserved for the busiest distributor-road junctions. Smaller streets
 # use collision-aware give-way behaviour instead of stopping at every crossing.
-const SIGNAL_X := [-40.0,40.0,140.0]
+const SIGNAL_X := [-140.0,-40.0,40.0,140.0]
 const SIGNAL_Z := [-120.0,-60.0,16.0,140.0]
 const LEVEL := -5.02
 const CYCLE := 9.0
