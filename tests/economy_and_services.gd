@@ -103,8 +103,12 @@ func run():
         cabs._physics_process(0.1)
         if not cabs.bookings.has(e.key_for(p)): break
     if not check(p.riding_service==null and not cabs.bookings.has(e.key_for(p)) and p.visual.visible,"Aurora completes the destination and releases the rider"): return
-    for audio in game.find_children("*","AudioStreamPlayer3D",true,false): audio.stop()
+    game.process_mode = Node.PROCESS_MODE_DISABLED
+    for audio in game.find_children("*","AudioStreamPlayer3D",true,false)+game.find_children("*","AudioStreamPlayer",true,false):
+        audio.stop()
+        audio.stream = null
+    await create_timer(0.2).timeout
     game.queue_free()
     await process_frame
     print("ECONOMY_SERVICES_OK: rent, wages, arrears, loans, paid boarding, timetable, PIN and complete autonomous journey")
-    quit()
+    call_deferred("quit")

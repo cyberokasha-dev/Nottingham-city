@@ -30,9 +30,12 @@ func run():
     for frame in range(180):
         await physics_frame
         if not p.transitioning: break
-    await create_timer(0.1).timeout
-    for audio in game.find_children("*","AudioStreamPlayer3D",true,false): audio.stop()
+    game.process_mode = Node.PROCESS_MODE_DISABLED
+    for audio in game.find_children("*","AudioStreamPlayer3D",true,false)+game.find_children("*","AudioStreamPlayer",true,false):
+        audio.stop()
+        audio.stream = null
+    await create_timer(0.2).timeout
     game.queue_free()
     await process_frame
     print("STREET_CAR_OK: physical entry and no AI duplicate")
-    quit()
+    call_deferred("quit")

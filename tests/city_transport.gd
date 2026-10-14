@@ -125,9 +125,12 @@ func run_checks() -> void:
     rule_only.free()
     if not check(bus.services_completed>=completed_before+7,"Bus repeatedly completes stops and a whole route loop"):
         return
-    for audio in game.find_children("*","AudioStreamPlayer3D",true,false):
+    game.process_mode = Node.PROCESS_MODE_DISABLED
+    for audio in game.find_children("*","AudioStreamPlayer3D",true,false)+game.find_children("*","AudioStreamPlayer",true,false):
         audio.stop()
+        audio.stream = null
+    await create_timer(0.2).timeout
     game.queue_free()
     await process_frame
     print("CITY_TRANSPORT_OK: detailed cars, routes, curved turns, signals, doors, boarding, parks and cleanup")
-    quit()
+    call_deferred("quit")

@@ -80,6 +80,9 @@ func _release_slot() -> void:
 		owns_slot = false
 
 func _exit_tree() -> void:
+	if is_instance_valid(voice):
+		voice.stop()
+		voice.stream = null
 	_release_slot()
 
 func stop() -> void:
