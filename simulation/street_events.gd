@@ -38,12 +38,21 @@ func _physics_process(delta: float) -> void:
 		if speed<2 or speed>45: continue # Ignore deliberate skip/teleport.
 		var forward: Vector3 = vehicle.global_basis.z.normalized()
 		var half_length := 5.2 if vehicle.get("route")!=null else 2.2
+		# Broadphase: reject people outside the swept segment's X/Z bounds
+		# before the more expensive 3D closest-point calculation.
+		var a := start-forward*half_length
+		var b := position+forward*half_length
+		var min_x := minf(a.x,b.x)-1.18
+		var max_x := maxf(a.x,b.x)+1.18
+		var min_z := minf(a.z,b.z)-1.18
+		var max_z := maxf(a.z,b.z)+1.18
 		for person in people:
 			if _unavailable(person): continue
-			var a := start-forward*half_length
-			var b := position+forward*half_length
-			var nearest := Geometry3D.get_closest_point_to_segment(person.global_position,a,b)
-			if nearest.distance_to(person.global_position)<1.18:
+			var person_position: Vector3 = person.global_position
+			if person_position.x<min_x or person_position.x>max_x or person_position.z<min_z or person_position.z>max_z:
+				continue
+			var nearest := Geometry3D.get_closest_point_to_segment(person_position,a,b)
+			if nearest.distance_to(person_position)<1.18:
 				person.receive_vehicle_hit(travel.normalized(),speed)
 	for id in previous.keys():
 		if not alive.has(id): previous.erase(id)
