@@ -181,7 +181,7 @@ func _park(center: Vector3) -> void:
 		_stamp(center+Vector3(side*13.0,path_y-GROUND_Y,0),Vector3(1.5,0.07,29.0),pavement)
 		# Short links join the park loop to each bordering road's pavement.
 		_stamp(center+Vector3(side*17.0,path_y-GROUND_Y,0),Vector3(8.0,0.07,1.5),pavement)
-		_stamp(center+Vector3(0,path_y-GROUND_Y,side*20.0),Vector3(1.5,0.07,10.0),pavement)
+		_stamp(center+Vector3(0,path_y-GROUND_Y,side*23.0),Vector3(1.5,0.07,16.0),pavement)
 	var park := preload("res://town/park.gd").new()
 	park.park_name = "Forest Recreation Ground" if center.x<0 else "Arboretum Gardens"
 	park.position = center
