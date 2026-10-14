@@ -15,7 +15,9 @@ const LINES := {
 var actor: CharacterBody3D
 const SCENE_LINES = preload("res://actors/dialogue_data.gd")
 var viewer: Node3D
-var voice_set := "alba"
+var voice_set := "cori"
+var ambient_enabled := true
+var ambient_pause := 0.0
 var remaining := 0.0
 var catalog := {}
 var variant := 0
@@ -40,6 +42,7 @@ static func text_for(key: String) -> String:
 	return LINES.get(key,SCENE_LINES.LINES.get(key,""))
 
 func speak(key: String, priority := false) -> bool:
+	if key=="blocked" or (not priority and (not ambient_enabled or ambient_pause>0)): return false
 	if (key not in LINES and key not in SCENE_LINES.LINES) or muted or (actor.dead and key != "awake"):
 		return false
 	if is_instance_valid(viewer) and actor.global_position.distance_to(viewer.global_position) > 18:
@@ -60,6 +63,7 @@ func speak(key: String, priority := false) -> bool:
 	remaining = float(segment.duration)/voice.pitch_scale
 	active_speakers += 1
 	owns_slot = true
+	if not priority: ambient_pause = 18.0+float(variant%7)*2.0
 	spoken_lines += 1
 	last_line = key
 	cooldown = maxf(1.0,remaining+0.5)
@@ -67,6 +71,7 @@ func speak(key: String, priority := false) -> bool:
 
 func _process(delta: float) -> void:
 	cooldown = maxf(0,cooldown-delta)
+	ambient_pause = maxf(0,ambient_pause-delta)
 	if owns_slot:
 		remaining -= delta
 		if remaining <= 0:
@@ -75,7 +80,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(actor) and actor.dead and voice.playing:
 		voice.stop()
 		_release_slot()
-	if cooldown<=0 and not owns_slot: set_process(false)
+	if cooldown<=0 and ambient_pause<=0 and not owns_slot: set_process(false)
 
 func _release_slot() -> void:
 	if owns_slot:
@@ -96,5 +101,6 @@ func duration_for(key: String) -> float:
 	return float(catalog.get(key,{"duration":2.0}).duration)/voice.pitch_scale
 
 func event(event_name: String) -> void:
+	if not ambient_enabled or cooldown>0: return
 	if "profile" in actor:
 		speak("event_"+actor.profile.name.to_lower()+"_"+event_name,true)

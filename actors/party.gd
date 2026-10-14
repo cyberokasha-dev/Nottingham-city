@@ -1,10 +1,10 @@
 extends Node
 ## Four independently persistent player bodies; control and the camera move together.
 const PROFILES := [
-	{"name":"Muhammad", "voice_pitch":0.97, "variant":0, "female":false, "model":"muhammad", "colour":Color("43c4d1")},
-	{"name":"Aisha", "voice_pitch":1.04, "variant":1, "female":true, "model":"human", "colour":Color("d890bd")},
-	{"name":"Musa", "voice_pitch":0.90, "variant":3, "female":false, "model":"human", "colour":Color("75be9f")},
-	{"name":"Jade", "voice_pitch":0.95, "variant":7, "female":true, "model":"human", "colour":Color("ad9fe6")}
+	{"name":"Muhammad", "voice":"northern_english_male", "voice_pitch":1.02, "variant":0, "female":false, "model":"muhammad", "colour":Color("43c4d1")},
+	{"name":"Aisha", "voice":"cori", "voice_pitch":1.03, "variant":1, "female":true, "model":"human", "colour":Color("d890bd")},
+	{"name":"Musa", "voice":"northern_english_male", "voice_pitch":0.96, "variant":3, "female":false, "model":"human", "colour":Color("75be9f")},
+	{"name":"Jade", "voice":"cori", "voice_pitch":0.97, "variant":8, "female":true, "model":"human", "colour":Color("ad9fe6")}
 ]
 var game: Node3D
 var members: Array[CharacterBody3D] = []

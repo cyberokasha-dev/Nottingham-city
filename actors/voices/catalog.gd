@@ -2004,5 +2004,2009 @@ const BANKS := {
       "duration": 1.372607709750567,
       "text": "Just a quiet moment."
     }
+  },
+  "northern_english_male": {
+    "hello": {
+      "start": 0.0,
+      "duration": 1.595827664399093,
+      "text": "Hello! How are you?"
+    },
+    "greeting": {
+      "start": 2.095827664399093,
+      "duration": 2.513015873015873,
+      "text": "Good morning! Lovely day for a walk."
+    },
+    "park": {
+      "start": 5.108843537414966,
+      "duration": 3.3257142857142856,
+      "text": "Have you visited the park? It's a nice place to relax."
+    },
+    "home": {
+      "start": 8.934557823129252,
+      "duration": 3.0470748299319728,
+      "text": "I'll stop at home after this. See you around!"
+    },
+    "day": {
+      "start": 12.481632653061224,
+      "duration": 2.4781859410430838,
+      "text": "I'm doing well, thank you. What a lovely day!"
+    },
+    "hurt": {
+      "start": 15.45981859410431,
+      "duration": 1.6422675736961452,
+      "text": "Ow! Hey, stop that!"
+    },
+    "blocked": {
+      "start": 17.602086167800454,
+      "duration": 2.489795918367347,
+      "text": "Blocked! Let's keep this friendly."
+    },
+    "rest": {
+      "start": 20.5918820861678,
+      "duration": 1.5931972789115647,
+      "text": "I'm taking a little rest."
+    },
+    "awake": {
+      "start": 22.685079365079364,
+      "duration": 2.1531065759637187,
+      "text": "I'm awake. Let's start again."
+    },
+    "bye": {
+      "start": 25.338185941043083,
+      "duration": 2.1298866213151926,
+      "text": "Take care. I'll see you later!"
+    },
+    "street_muhammad_open": {
+      "start": 27.968072562358277,
+      "duration": 2.513015873015873,
+      "text": "Hi, I'm Muhammad. How's your day going?"
+    },
+    "street_aisha_open": {
+      "start": 30.98108843537415,
+      "duration": 2.76843537414966,
+      "text": "Hello. Is everything all right around here?"
+    },
+    "street_musa_open": {
+      "start": 34.24952380952381,
+      "duration": 2.1388662131519274,
+      "text": "Hey, good to see someone out and about!"
+    },
+    "street_jade_open": {
+      "start": 36.888390022675736,
+      "duration": 2.6291156462585032,
+      "text": "Hello. What's happening in the neighbourhood?"
+    },
+    "street_npc_0": {
+      "start": 40.01750566893424,
+      "duration": 2.8961451247165533,
+      "text": "It's a quiet day. I'm walking to my next stop."
+    },
+    "street_npc_1": {
+      "start": 43.413650793650795,
+      "duration": 2.8354648526077098,
+      "text": "I'm a little busy, but I can stop for a moment."
+    },
+    "street_npc_2": {
+      "start": 46.7491156462585,
+      "duration": 2.826485260770975,
+      "text": "Just getting some fresh air. What can I do for you?"
+    },
+    "street_muhammad_reply_0": {
+      "start": 50.075600907029475,
+      "duration": 1.5235374149659864,
+      "text": "Is there a good park nearby?"
+    },
+    "street_aisha_reply_0": {
+      "start": 52.09913832199546,
+      "duration": 1.2448979591836735,
+      "text": "Which way is the park?"
+    },
+    "street_musa_reply_0": {
+      "start": 53.844036281179136,
+      "duration": 2.6497052154195013,
+      "text": "Where can I find a nice place to relax?"
+    },
+    "street_jade_reply_0": {
+      "start": 56.99374149659864,
+      "duration": 1.697687074829932,
+      "text": "Can you point me towards the park?"
+    },
+    "street_npc_reply_0": {
+      "start": 59.191428571428574,
+      "duration": 3.337324263038549,
+      "text": "The east park is a good choice. I've marked it on your map."
+    },
+    "street_muhammad_reply_1": {
+      "start": 63.02875283446712,
+      "duration": 1.5467573696145125,
+      "text": "I hope you have a good day."
+    },
+    "street_aisha_reply_1": {
+      "start": 65.07551020408164,
+      "duration": 1.9905668934240364,
+      "text": "Thanks for stopping. Take care."
+    },
+    "street_musa_reply_1": {
+      "start": 67.56607709750567,
+      "duration": 2.1736961451247168,
+      "text": "It was nice meeting you!"
+    },
+    "street_jade_reply_1": {
+      "start": 70.23977324263039,
+      "duration": 1.920907029478458,
+      "text": "Thanks. Enjoy your walk."
+    },
+    "street_npc_reply_1": {
+      "start": 72.66068027210885,
+      "duration": 3.7114739229024942,
+      "text": "Thank you. I'll remember that. Come and say hello again."
+    },
+    "street_muhammad_reply_2": {
+      "start": 76.87215419501133,
+      "duration": 2.164716553287982,
+      "text": "Move aside. I don't want trouble."
+    },
+    "street_aisha_reply_2": {
+      "start": 79.53687074829932,
+      "duration": 1.709297052154195,
+      "text": "You'd better stay out of my way."
+    },
+    "street_musa_reply_2": {
+      "start": 81.74616780045352,
+      "duration": 1.2681179138321996,
+      "text": "Don't mess with me."
+    },
+    "street_jade_reply_2": {
+      "start": 83.51428571428572,
+      "duration": 2.0808163265306123,
+      "text": "Keep your distance, or we'll have a problem."
+    },
+    "street_npc_reply_2": {
+      "start": 86.09510204081633,
+      "duration": 1.8860770975056689,
+      "text": "Don't threaten me. Back off!"
+    },
+    "park_muhammad_open": {
+      "start": 88.48117913832199,
+      "duration": 2.803265306122449,
+      "text": "This park looks peaceful. Do you come here often?"
+    },
+    "park_aisha_open": {
+      "start": 91.78444444444445,
+      "duration": 2.092426303854875,
+      "text": "Is this a good place for a quiet break?"
+    },
+    "park_musa_open": {
+      "start": 94.37687074829932,
+      "duration": 2.6639455782312926,
+      "text": "Now this is a nice spot! How are you doing?"
+    },
+    "park_jade_open": {
+      "start": 97.54081632653062,
+      "duration": 2.9774149659863944,
+      "text": "I like the trees here. Is it usually this quiet?"
+    },
+    "park_npc_0": {
+      "start": 101.018231292517,
+      "duration": 2.3246258503401362,
+      "text": "I like taking a walk here before going home."
+    },
+    "park_npc_1": {
+      "start": 103.84285714285714,
+      "duration": 4.103582766439909,
+      "text": "I stopped for a short break. It's quieter than the roads."
+    },
+    "park_npc_2": {
+      "start": 108.44643990929706,
+      "duration": 2.371065759637188,
+      "text": "It's a good place to relax and meet neighbours."
+    },
+    "park_muhammad_reply_0": {
+      "start": 111.31750566893425,
+      "duration": 1.8253968253968254,
+      "text": "Would you like some company on your walk?"
+    },
+    "park_aisha_reply_0": {
+      "start": 113.64290249433107,
+      "duration": 1.6396371882086167,
+      "text": "Shall we walk a little together?"
+    },
+    "park_musa_reply_0": {
+      "start": 115.78253968253968,
+      "duration": 2.022766439909297,
+      "text": "Come on, let's take a short walk together."
+    },
+    "park_jade_reply_0": {
+      "start": 118.30530612244898,
+      "duration": 1.9531065759637187,
+      "text": "Would a little company be all right?"
+    },
+    "park_npc_reply_0": {
+      "start": 120.7584126984127,
+      "duration": 2.849705215419501,
+      "text": "Sure. I'll walk beside you for a little while."
+    },
+    "park_muhammad_reply_1": {
+      "start": 124.1081179138322,
+      "duration": 1.8834467120181406,
+      "text": "I'm going to take a break here."
+    },
+    "park_aisha_reply_1": {
+      "start": 126.49156462585034,
+      "duration": 1.38421768707483,
+      "text": "I need a quiet moment."
+    },
+    "park_musa_reply_1": {
+      "start": 128.37578231292517,
+      "duration": 1.6280272108843536,
+      "text": "I'm taking it easy today."
+    },
+    "park_jade_reply_1": {
+      "start": 130.50380952380954,
+      "duration": 1.7789569160997731,
+      "text": "I'll stay here and clear my head."
+    },
+    "park_npc_reply_1": {
+      "start": 132.7827664399093,
+      "duration": 3.41859410430839,
+      "text": "That's a good idea. Take your time and look after yourself."
+    },
+    "park_muhammad_reply_2": {
+      "start": 136.7013605442177,
+      "duration": 2.571065759637188,
+      "text": "Enjoy the park. I'll see you later."
+    },
+    "park_aisha_reply_2": {
+      "start": 139.77242630385487,
+      "duration": 2.1182766439909297,
+      "text": "Thanks. I'll carry on now."
+    },
+    "park_musa_reply_2": {
+      "start": 142.3907029478458,
+      "duration": 2.176326530612245,
+      "text": "Have a good one. See you around!"
+    },
+    "park_jade_reply_2": {
+      "start": 145.06702947845804,
+      "duration": 2.211156462585034,
+      "text": "Take care. Maybe we'll meet again."
+    },
+    "park_npc_reply_2": {
+      "start": 147.7781859410431,
+      "duration": 2.3736961451247165,
+      "text": "See you later. Enjoy your day."
+    },
+    "car_muhammad_open": {
+      "start": 150.6518820861678,
+      "duration": 2.733605442176871,
+      "text": "Hello. I'm choosing a car for a drive."
+    },
+    "car_aisha_open": {
+      "start": 153.88548752834467,
+      "duration": 2.2924263038548753,
+      "text": "Hello. Do you know these vehicles?"
+    },
+    "car_musa_open": {
+      "start": 156.67791383219955,
+      "duration": 2.6639455782312926,
+      "text": "These cars look good! Which one would you pick?"
+    },
+    "car_jade_open": {
+      "start": 159.84185941043083,
+      "duration": 2.547845804988662,
+      "text": "Hello. Is the road clear for a drive?"
+    },
+    "car_npc_0": {
+      "start": 162.8897052154195,
+      "duration": 3.360544217687075,
+      "text": "There are cars and trucks here. Drive carefully around people."
+    },
+    "car_npc_1": {
+      "start": 166.75024943310657,
+      "duration": 2.5452154195011336,
+      "text": "The road looks clear, but check before you pull out."
+    },
+    "car_npc_2": {
+      "start": 169.79546485260772,
+      "duration": 3.070294784580499,
+      "text": "I like the gold car. It's easy to spot from here."
+    },
+    "car_muhammad_reply_0": {
+      "start": 173.3657596371882,
+      "duration": 1.9414965986394557,
+      "text": "I'll watch out for pedestrians."
+    },
+    "car_aisha_reply_0": {
+      "start": 175.80725623582765,
+      "duration": 2.092426303854875,
+      "text": "I'll keep the speed down around people."
+    },
+    "car_musa_reply_0": {
+      "start": 178.39968253968254,
+      "duration": 2.7219954648526077,
+      "text": "Don't worry. I'll take it slowly."
+    },
+    "car_jade_reply_0": {
+      "start": 181.62167800453514,
+      "duration": 1.7789569160997731,
+      "text": "I'll check the road before I go."
+    },
+    "car_npc_reply_0": {
+      "start": 183.90063492063493,
+      "duration": 2.907755102040816,
+      "text": "Thanks. That makes it safer for everyone."
+    },
+    "car_muhammad_reply_1": {
+      "start": 187.30839002267572,
+      "duration": 2.1040362811791384,
+      "text": "Are there taxis or buses here yet?"
+    },
+    "car_aisha_reply_1": {
+      "start": 189.9124263038549,
+      "duration": 1.5931972789115647,
+      "text": "Is public transport running?"
+    },
+    "car_musa_reply_1": {
+      "start": 192.00562358276645,
+      "duration": 2.022766439909297,
+      "text": "Can I catch a bus or a taxi?"
+    },
+    "car_jade_reply_1": {
+      "start": 194.52839002267575,
+      "duration": 2.2433560090702946,
+      "text": "Is there a way to get a ride around the city?"
+    },
+    "car_npc_reply_1": {
+      "start": 197.27174603174603,
+      "duration": 4.756371882086168,
+      "text": "Not yet. For now we walk or you drive. Buses and taxis will come later."
+    },
+    "car_muhammad_reply_2": {
+      "start": 202.5281179138322,
+      "duration": 1.686077097505669,
+      "text": "I'll be the fastest driver here."
+    },
+    "car_aisha_reply_2": {
+      "start": 204.71419501133786,
+      "duration": 1.999546485260771,
+      "text": "Nobody is going to slow me down."
+    },
+    "car_musa_reply_2": {
+      "start": 207.21374149659863,
+      "duration": 1.6048072562358278,
+      "text": "Watch me race down that road!"
+    },
+    "car_jade_reply_2": {
+      "start": 209.31854875283446,
+      "duration": 2.580045351473923,
+      "text": "I want to see how fast this car can go."
+    },
+    "car_npc_reply_2": {
+      "start": 212.3985941043084,
+      "duration": 3.441814058956916,
+      "text": "Please don't race near people. I'm keeping my distance."
+    },
+    "house_muhammad_open": {
+      "start": 216.3404081632653,
+      "duration": 3.1658049886621313,
+      "text": "Hello. It's good to be indoors. How are you?"
+    },
+    "house_aisha_open": {
+      "start": 220.00621315192743,
+      "duration": 2.4317460317460315,
+      "text": "Hello. Is this a good time to visit?"
+    },
+    "house_musa_open": {
+      "start": 222.93795918367346,
+      "duration": 2.5942857142857143,
+      "text": "This home feels comfortable. How's it going?"
+    },
+    "house_jade_open": {
+      "start": 226.03224489795917,
+      "duration": 2.4317460317460315,
+      "text": "Hello. I hope I'm not disturbing you."
+    },
+    "house_npc_0": {
+      "start": 228.9639909297052,
+      "duration": 2.9774149659863944,
+      "text": "Make yourself comfortable. There's a sofa and a bed."
+    },
+    "house_npc_1": {
+      "start": 232.44140589569162,
+      "duration": 2.4871655328798186,
+      "text": "I was having a quiet moment at home."
+    },
+    "house_npc_2": {
+      "start": 235.42857142857142,
+      "duration": 2.710385487528345,
+      "text": "Welcome. Let's keep things peaceful in here."
+    },
+    "house_muhammad_reply_0": {
+      "start": 238.63895691609977,
+      "duration": 2.336235827664399,
+      "text": "Where can I sit or have a rest?"
+    },
+    "house_aisha_reply_0": {
+      "start": 241.47519274376418,
+      "duration": 1.686077097505669,
+      "text": "Is there somewhere I can sit?"
+    },
+    "house_musa_reply_0": {
+      "start": 243.66126984126984,
+      "duration": 2.069206349206349,
+      "text": "I'd like to relax for a moment."
+    },
+    "house_jade_reply_0": {
+      "start": 246.2304761904762,
+      "duration": 1.9298866213151928,
+      "text": "Can I take a quiet break here?"
+    },
+    "house_npc_reply_0": {
+      "start": 248.66036281179137,
+      "duration": 5.078820861678005,
+      "text": "Walk beside the sofa to sit, or beside the bed to sleep. Press E to use it."
+    },
+    "house_muhammad_reply_1": {
+      "start": 254.2391836734694,
+      "duration": 1.5003174603174603,
+      "text": "Thank you for welcoming me."
+    },
+    "house_aisha_reply_1": {
+      "start": 256.23950113378686,
+      "duration": 2.083446712018141,
+      "text": "Thanks. I appreciate it."
+    },
+    "house_musa_reply_1": {
+      "start": 258.822947845805,
+      "duration": 1.8744671201814058,
+      "text": "That's kind of you. Thank you!"
+    },
+    "house_jade_reply_1": {
+      "start": 261.1974149659864,
+      "duration": 1.9441269841269841,
+      "text": "Thank you. I'll be considerate."
+    },
+    "house_npc_reply_1": {
+      "start": 263.6415419501134,
+      "duration": 3.105124716553288,
+      "text": "You're welcome. It's nice to have a friendly visitor."
+    },
+    "house_muhammad_reply_2": {
+      "start": 267.24666666666667,
+      "duration": 1.3493877551020408,
+      "text": "I'll let you get some rest."
+    },
+    "house_aisha_reply_2": {
+      "start": 269.0960544217687,
+      "duration": 1.5119274376417233,
+      "text": "I'll leave you in peace now."
+    },
+    "house_musa_reply_2": {
+      "start": 271.1079818594104,
+      "duration": 2.605895691609977,
+      "text": "See you later. Enjoy your quiet time."
+    },
+    "house_jade_reply_2": {
+      "start": 274.2138775510204,
+      "duration": 1.7815873015873016,
+      "text": "I'll go now. Take care."
+    },
+    "house_npc_reply_2": {
+      "start": 276.4954648526077,
+      "duration": 2.9193650793650794,
+      "text": "Take care. Use the front door when you're ready to leave."
+    },
+    "injured_muhammad_open": {
+      "start": 279.9148299319728,
+      "duration": 2.0950566893424036,
+      "text": "You look hurt. Are you all right?"
+    },
+    "injured_aisha_open": {
+      "start": 282.5098866213152,
+      "duration": 2.280816326530612,
+      "text": "Are you injured? Do you need a break?"
+    },
+    "injured_musa_open": {
+      "start": 285.29070294784583,
+      "duration": 2.2924263038548753,
+      "text": "That looked painful. Are you okay?"
+    },
+    "injured_jade_open": {
+      "start": 288.08312925170065,
+      "duration": 2.0602267573696147,
+      "text": "You don't look well. Can I help?"
+    },
+    "injured_npc_0": {
+      "start": 290.6433560090703,
+      "duration": 2.5362358276643993,
+      "text": "I'm hurt. I need to take things slowly."
+    },
+    "injured_npc_1": {
+      "start": 293.6795918367347,
+      "duration": 3.3489342403628117,
+      "text": "My health is low. I could do with some peace."
+    },
+    "injured_npc_2": {
+      "start": 297.5285260770975,
+      "duration": 2.1853061224489796,
+      "text": "I need to recover before I carry on."
+    },
+    "injured_muhammad_reply_0": {
+      "start": 300.21383219954646,
+      "duration": 2.3969160997732426,
+      "text": "Take your time. I won't bother you."
+    },
+    "injured_aisha_reply_0": {
+      "start": 303.1107482993197,
+      "duration": 2.3156462585034014,
+      "text": "Rest for a moment. You're safe."
+    },
+    "injured_musa_reply_0": {
+      "start": 305.92639455782313,
+      "duration": 2.1182766439909297,
+      "text": "Easy now. Have a quiet break."
+    },
+    "injured_jade_reply_0": {
+      "start": 308.5446712018141,
+      "duration": 2.814875283446712,
+      "text": "Take a breath. I won't start any trouble."
+    },
+    "injured_npc_reply_0": {
+      "start": 311.85954648526075,
+      "duration": 2.826485260770975,
+      "text": "Thank you. I'll calm down and take a rest."
+    },
+    "injured_muhammad_reply_1": {
+      "start": 315.18603174603174,
+      "duration": 3.406984126984127,
+      "text": "I'm sorry if I caused that. Let's stop fighting."
+    },
+    "injured_aisha_reply_1": {
+      "start": 319.0930158730159,
+      "duration": 2.466575963718821,
+      "text": "I'm sorry. I don't want to hurt you."
+    },
+    "injured_musa_reply_1": {
+      "start": 322.0595918367347,
+      "duration": 2.7800453514739227,
+      "text": "Sorry about that. Let's call it a day."
+    },
+    "injured_jade_reply_1": {
+      "start": 325.3396371882086,
+      "duration": 2.6871655328798187,
+      "text": "I was wrong to cause trouble. I'm sorry."
+    },
+    "injured_npc_reply_1": {
+      "start": 328.5268027210884,
+      "duration": 3.41859410430839,
+      "text": "I accept your apology. Let's leave the fighting behind us."
+    },
+    "injured_muhammad_reply_2": {
+      "start": 332.4453968253968,
+      "duration": 1.6744671201814059,
+      "text": "You're not so tough now, are you?"
+    },
+    "injured_aisha_reply_2": {
+      "start": 334.61986394557823,
+      "duration": 1.8253968253968254,
+      "text": "You should have stayed out of my way."
+    },
+    "injured_musa_reply_2": {
+      "start": 336.94526077097504,
+      "duration": 1.4190476190476191,
+      "text": "Can't take a little fight?"
+    },
+    "injured_jade_reply_2": {
+      "start": 338.8643083900227,
+      "duration": 1.8137868480725623,
+      "text": "You're only slowing everyone down."
+    },
+    "injured_npc_reply_2": {
+      "start": 341.17809523809524,
+      "duration": 2.7800453514739227,
+      "text": "That's enough. Leave me alone!"
+    },
+    "hostile_muhammad_open": {
+      "start": 344.45814058956915,
+      "duration": 2.489795918367347,
+      "text": "Wait. Can we talk instead of fighting?"
+    },
+    "hostile_aisha_open": {
+      "start": 347.4479365079365,
+      "duration": 2.3504761904761904,
+      "text": "Stop a moment. I want to talk."
+    },
+    "hostile_musa_open": {
+      "start": 350.2984126984127,
+      "duration": 2.443356009070295,
+      "text": "Hold on. Let's sort this out."
+    },
+    "hostile_jade_open": {
+      "start": 353.241768707483,
+      "duration": 2.6523356009070294,
+      "text": "Wait. This isn't helping either of us."
+    },
+    "hostile_npc_0": {
+      "start": 356.39410430839,
+      "duration": 3.105124716553288,
+      "text": "You started trouble. What do you want now?"
+    },
+    "hostile_npc_1": {
+      "start": 359.9992290249433,
+      "duration": 2.6523356009070294,
+      "text": "I'm angry. Give me a good reason to stop."
+    },
+    "hostile_npc_2": {
+      "start": 363.1515646258503,
+      "duration": 1.686077097505669,
+      "text": "You need to explain yourself."
+    },
+    "hostile_muhammad_reply_0": {
+      "start": 365.337641723356,
+      "duration": 2.7219954648526077,
+      "text": "I'm sorry. I won't hit you again."
+    },
+    "hostile_aisha_reply_0": {
+      "start": 368.5596371882086,
+      "duration": 2.199546485260771,
+      "text": "I was wrong. Let's stop now."
+    },
+    "hostile_musa_reply_0": {
+      "start": 371.2591836734694,
+      "duration": 2.1182766439909297,
+      "text": "Sorry. I got carried away."
+    },
+    "hostile_jade_reply_0": {
+      "start": 373.8774603174603,
+      "duration": 2.489795918367347,
+      "text": "I'm sorry. I'd rather make peace."
+    },
+    "hostile_npc_reply_0": {
+      "start": 376.86725623582765,
+      "duration": 3.9785034013605443,
+      "text": "All right. I accept your apology. Let's both calm down."
+    },
+    "hostile_muhammad_reply_1": {
+      "start": 381.3457596371882,
+      "duration": 2.3504761904761904,
+      "text": "I'll walk away. No more trouble."
+    },
+    "hostile_aisha_reply_1": {
+      "start": 384.1962358276644,
+      "duration": 2.187936507936508,
+      "text": "I'm leaving. Let's stop here."
+    },
+    "hostile_musa_reply_1": {
+      "start": 386.8841723356009,
+      "duration": 1.5351473922902494,
+      "text": "I'll give you some space."
+    },
+    "hostile_jade_reply_1": {
+      "start": 388.91931972789115,
+      "duration": 2.50140589569161,
+      "text": "I'll go. We don't need another fight."
+    },
+    "hostile_npc_reply_1": {
+      "start": 391.92072562358277,
+      "duration": 2.9658049886621316,
+      "text": "Fine. Keep your distance and we'll leave it there."
+    },
+    "hostile_muhammad_reply_2": {
+      "start": 395.3865306122449,
+      "duration": 1.4306575963718822,
+      "text": "I'm not backing down."
+    },
+    "hostile_aisha_reply_2": {
+      "start": 397.31718820861676,
+      "duration": 1.7441269841269842,
+      "text": "You haven't heard the last of this."
+    },
+    "hostile_musa_reply_2": {
+      "start": 399.5613151927438,
+      "duration": 2.1298866213151926,
+      "text": "Come on then. I'm still here."
+    },
+    "hostile_jade_reply_2": {
+      "start": 402.19120181405896,
+      "duration": 2.045986394557823,
+      "text": "I won't let you push me around."
+    },
+    "hostile_npc_reply_2": {
+      "start": 404.7371882086168,
+      "duration": 3.15156462585034,
+      "text": "Then stay back. I'm ready to defend myself."
+    },
+    "friend_muhammad_open": {
+      "start": 408.38875283446714,
+      "duration": 2.304036281179138,
+      "text": "Hello again! It's good to see you."
+    },
+    "friend_aisha_open": {
+      "start": 411.19278911564624,
+      "duration": 2.211156462585034,
+      "text": "Hello again. How have you been?"
+    },
+    "friend_musa_open": {
+      "start": 413.9039455782313,
+      "duration": 2.3853061224489798,
+      "text": "There's a friendly face! How's your day?"
+    },
+    "friend_jade_open": {
+      "start": 416.78925170068027,
+      "duration": 2.524625850340136,
+      "text": "Hello again. It's nice to meet you here."
+    },
+    "friend_npc_0": {
+      "start": 419.8138775510204,
+      "duration": 2.9193650793650794,
+      "text": "Good to see you too. I remember you being kind."
+    },
+    "friend_npc_1": {
+      "start": 423.23324263038546,
+      "duration": 3.430204081632653,
+      "text": "Hello, my friend. I'm glad we met again."
+    },
+    "friend_npc_2": {
+      "start": 427.16344671201813,
+      "duration": 2.5103854875283447,
+      "text": "It's nice seeing a familiar, friendly face."
+    },
+    "friend_muhammad_reply_0": {
+      "start": 430.1738321995465,
+      "duration": 1.6280272108843536,
+      "text": "Would you like to walk with me?"
+    },
+    "friend_aisha_reply_0": {
+      "start": 432.30185941043084,
+      "duration": 1.3493877551020408,
+      "text": "Do you want some company?"
+    },
+    "friend_musa_reply_0": {
+      "start": 434.1512471655329,
+      "duration": 1.999546485260771,
+      "text": "Come along for a short walk with me!"
+    },
+    "friend_jade_reply_0": {
+      "start": 436.6507936507937,
+      "duration": 2.03437641723356,
+      "text": "Would you like to join me for a little while?"
+    },
+    "friend_npc_reply_0": {
+      "start": 439.1851700680272,
+      "duration": 3.337324263038549,
+      "text": "I'd like that. I'll stay nearby for a short walk."
+    },
+    "friend_muhammad_reply_1": {
+      "start": 443.0224943310658,
+      "duration": 1.8834467120181406,
+      "text": "Could you help me find the east park?"
+    },
+    "friend_aisha_reply_1": {
+      "start": 445.4059410430839,
+      "duration": 1.9647165532879818,
+      "text": "Which way should I go for the east park?"
+    },
+    "friend_musa_reply_1": {
+      "start": 447.87065759637187,
+      "duration": 2.022766439909297,
+      "text": "Remind me where the east park is?"
+    },
+    "friend_jade_reply_1": {
+      "start": 450.3934240362812,
+      "duration": 1.8950566893424037,
+      "text": "Can you point me towards the east park?"
+    },
+    "friend_npc_reply_1": {
+      "start": 452.7884807256236,
+      "duration": 2.4781859410430838,
+      "text": "Of course. I've marked the park on your map."
+    },
+    "friend_muhammad_reply_2": {
+      "start": 455.76666666666665,
+      "duration": 2.164716553287982,
+      "text": "Take care. I'll see you around."
+    },
+    "friend_aisha_reply_2": {
+      "start": 458.4313832199546,
+      "duration": 1.8396371882086169,
+      "text": "Thanks. See you later."
+    },
+    "friend_musa_reply_2": {
+      "start": 460.7710204081633,
+      "duration": 1.7557369614512472,
+      "text": "Have a good day, my friend!"
+    },
+    "friend_jade_reply_2": {
+      "start": 463.02675736961453,
+      "duration": 2.257596371882086,
+      "text": "Take care. I'm glad we caught up."
+    },
+    "friend_npc_reply_2": {
+      "start": 465.7843537414966,
+      "duration": 1.5583673469387755,
+      "text": "See you later, my friend."
+    },
+    "event_muhammad_enter_car": {
+      "start": 467.8427210884354,
+      "duration": 1.1752380952380952,
+      "text": "Let's take a drive."
+    },
+    "event_aisha_enter_car": {
+      "start": 469.5179591836735,
+      "duration": 1.8137868480725623,
+      "text": "I'll check the road before I go."
+    },
+    "event_musa_enter_car": {
+      "start": 471.83174603174604,
+      "duration": 1.2216780045351474,
+      "text": "Time for a drive!"
+    },
+    "event_jade_enter_car": {
+      "start": 473.55342403628117,
+      "duration": 1.8253968253968254,
+      "text": "Let's see where this road goes."
+    },
+    "event_muhammad_exit_car": {
+      "start": 475.878820861678,
+      "duration": 1.395827664399093,
+      "text": "I'll carry on on foot."
+    },
+    "event_aisha_exit_car": {
+      "start": 477.7746485260771,
+      "duration": 2.2692063492063492,
+      "text": "Stopped safely. I'll get out now."
+    },
+    "event_musa_exit_car": {
+      "start": 480.54385487528344,
+      "duration": 1.2913378684807255,
+      "text": "That was a good drive."
+    },
+    "event_jade_exit_car": {
+      "start": 482.3351927437642,
+      "duration": 1.9763265306122448,
+      "text": "I'll explore on foot from here."
+    },
+    "event_muhammad_enter_house": {
+      "start": 484.8115192743764,
+      "duration": 1.4887074829931972,
+      "text": "Let's have a look inside."
+    },
+    "event_aisha_enter_house": {
+      "start": 486.8002267573696,
+      "duration": 1.8744671201814058,
+      "text": "Hello? I'm coming in."
+    },
+    "event_musa_enter_house": {
+      "start": 489.174693877551,
+      "duration": 1.5583673469387755,
+      "text": "It's good to be indoors."
+    },
+    "event_jade_enter_house": {
+      "start": 491.2330612244898,
+      "duration": 2.2692063492063492,
+      "text": "A quiet home. Let's take a look."
+    },
+    "event_muhammad_exit_house": {
+      "start": 494.00226757369614,
+      "duration": 1.4190476190476191,
+      "text": "Back out into the city."
+    },
+    "event_aisha_exit_house": {
+      "start": 495.92131519274375,
+      "duration": 1.7673469387755103,
+      "text": "I'll close the door behind me."
+    },
+    "event_musa_exit_house": {
+      "start": 498.18866213151927,
+      "duration": 1.38421768707483,
+      "text": "Time to get moving again!"
+    },
+    "event_jade_exit_house": {
+      "start": 500.0728798185941,
+      "duration": 1.6280272108843536,
+      "text": "I'll head back outside now."
+    },
+    "event_muhammad_sit": {
+      "start": 502.20090702947846,
+      "duration": 1.6512471655328798,
+      "text": "I'll sit here for a moment."
+    },
+    "event_aisha_sit": {
+      "start": 504.35215419501134,
+      "duration": 1.4422675736961452,
+      "text": "A short break will help."
+    },
+    "event_musa_sit": {
+      "start": 506.2944217687075,
+      "duration": 1.9647165532879818,
+      "text": "This looks like a comfortable seat."
+    },
+    "event_jade_sit": {
+      "start": 508.75913832199547,
+      "duration": 1.7905668934240362,
+      "text": "I'll sit and think for a moment."
+    },
+    "event_muhammad_sleep": {
+      "start": 511.0497052154195,
+      "duration": 2.6639455782312926,
+      "text": "I need some sleep. See you in a little while."
+    },
+    "event_aisha_sleep": {
+      "start": 514.2136507936508,
+      "duration": 1.6280272108843536,
+      "text": "Time to rest and recover."
+    },
+    "event_musa_sleep": {
+      "start": 516.3416780045352,
+      "duration": 1.4422675736961452,
+      "text": "I'll have a little sleep."
+    },
+    "event_jade_sleep": {
+      "start": 518.2839455782313,
+      "duration": 1.3377777777777777,
+      "text": "I'll get some rest now."
+    },
+    "event_muhammad_wake": {
+      "start": 520.121723356009,
+      "duration": 2.1066666666666665,
+      "text": "I'm awake. Let's get going."
+    },
+    "event_aisha_wake": {
+      "start": 522.7283900226757,
+      "duration": 1.2332879818594105,
+      "text": "Rested and ready."
+    },
+    "event_musa_wake": {
+      "start": 524.4616780045352,
+      "duration": 1.8164172335600908,
+      "text": "That helped! Let's go."
+    },
+    "event_jade_wake": {
+      "start": 526.7780952380953,
+      "duration": 1.697687074829932,
+      "text": "I'm ready to carry on now."
+    },
+    "event_muhammad_switch": {
+      "start": 528.9757823129252,
+      "duration": 2.50140589569161,
+      "text": "I'm Muhammad. Let's explore the city."
+    },
+    "event_aisha_switch": {
+      "start": 531.9771882086168,
+      "duration": 1.8860770975056689,
+      "text": "Aisha here. What's the plan?"
+    },
+    "event_musa_switch": {
+      "start": 534.3632653061225,
+      "duration": 2.1066666666666665,
+      "text": "Musa here. Ready when you are!"
+    },
+    "event_jade_switch": {
+      "start": 536.9699319727891,
+      "duration": 2.4201360544217687,
+      "text": "Jade here. Let's see what's happening."
+    },
+    "event_muhammad_fold": {
+      "start": 539.8900680272109,
+      "duration": 1.709297052154195,
+      "text": "I'll stand here for a moment."
+    },
+    "event_aisha_fold": {
+      "start": 542.099365079365,
+      "duration": 1.1171882086167801,
+      "text": "I'll wait here."
+    },
+    "event_musa_fold": {
+      "start": 543.7165532879818,
+      "duration": 1.372607709750567,
+      "text": "I'll take a moment."
+    },
+    "event_jade_fold": {
+      "start": 545.5891609977324,
+      "duration": 1.3609977324263038,
+      "text": "Just a quiet moment."
+    }
+  },
+  "cori": {
+    "hello": {
+      "start": 0.0,
+      "duration": 2.0137868480725625,
+      "text": "Hello! How are you?"
+    },
+    "greeting": {
+      "start": 2.5137868480725625,
+      "duration": 2.6175056689342404,
+      "text": "Good morning! Lovely day for a walk."
+    },
+    "park": {
+      "start": 5.631292517006803,
+      "duration": 3.337324263038549,
+      "text": "Have you visited the park? It's a nice place to relax."
+    },
+    "home": {
+      "start": 9.468616780045352,
+      "duration": 2.9890249433106577,
+      "text": "I'll stop at home after this. See you around!"
+    },
+    "day": {
+      "start": 12.957641723356009,
+      "duration": 3.139954648526077,
+      "text": "I'm doing well, thank you. What a lovely day!"
+    },
+    "hurt": {
+      "start": 16.597596371882087,
+      "duration": 2.3156462585034014,
+      "text": "Ow! Hey, stop that!"
+    },
+    "blocked": {
+      "start": 19.413242630385486,
+      "duration": 2.5942857142857143,
+      "text": "Blocked! Let's keep this friendly."
+    },
+    "rest": {
+      "start": 22.5075283446712,
+      "duration": 1.6048072562358278,
+      "text": "I'm taking a little rest."
+    },
+    "awake": {
+      "start": 24.61233560090703,
+      "duration": 2.245986394557823,
+      "text": "I'm awake. Let's start again."
+    },
+    "bye": {
+      "start": 27.358321995464852,
+      "duration": 2.2692063492063492,
+      "text": "Take care. I'll see you later!"
+    },
+    "street_muhammad_open": {
+      "start": 30.1275283446712,
+      "duration": 2.9774149659863944,
+      "text": "Hi, I'm Muhammad. How's your day going?"
+    },
+    "street_aisha_open": {
+      "start": 33.604943310657596,
+      "duration": 3.372154195011338,
+      "text": "Hello. Is everything all right around here?"
+    },
+    "street_musa_open": {
+      "start": 37.47709750566894,
+      "duration": 2.359455782312925,
+      "text": "Hey, good to see someone out and about!"
+    },
+    "street_jade_open": {
+      "start": 40.33655328798186,
+      "duration": 2.9193650793650794,
+      "text": "Hello. What's happening in the neighbourhood?"
+    },
+    "street_npc_0": {
+      "start": 43.755918367346936,
+      "duration": 3.2212244897959184,
+      "text": "It's a quiet day. I'm walking to my next stop."
+    },
+    "street_npc_1": {
+      "start": 47.47714285714286,
+      "duration": 2.8122448979591836,
+      "text": "I'm a little busy, but I can stop for a moment."
+    },
+    "street_npc_2": {
+      "start": 50.78938775510204,
+      "duration": 3.3489342403628117,
+      "text": "Just getting some fresh air. What can I do for you?"
+    },
+    "street_muhammad_reply_0": {
+      "start": 54.63832199546485,
+      "duration": 1.7905668934240362,
+      "text": "Is there a good park nearby?"
+    },
+    "street_aisha_reply_0": {
+      "start": 56.92888888888889,
+      "duration": 1.5583673469387755,
+      "text": "Which way is the park?"
+    },
+    "street_musa_reply_0": {
+      "start": 58.987256235827665,
+      "duration": 2.719365079365079,
+      "text": "Where can I find a nice place to relax?"
+    },
+    "street_jade_reply_0": {
+      "start": 62.20662131519274,
+      "duration": 1.8370068027210884,
+      "text": "Can you point me towards the park?"
+    },
+    "street_npc_reply_0": {
+      "start": 64.54362811791383,
+      "duration": 3.8133333333333335,
+      "text": "The east park is a good choice. I've marked it on your map."
+    },
+    "street_muhammad_reply_1": {
+      "start": 68.85696145124716,
+      "duration": 1.7325170068027211,
+      "text": "I hope you have a good day."
+    },
+    "street_aisha_reply_1": {
+      "start": 71.08947845804988,
+      "duration": 2.3156462585034014,
+      "text": "Thanks for stopping. Take care."
+    },
+    "street_musa_reply_1": {
+      "start": 73.90512471655329,
+      "duration": 1.7325170068027211,
+      "text": "It was nice meeting you!"
+    },
+    "street_jade_reply_1": {
+      "start": 76.13764172335601,
+      "duration": 1.9905668934240364,
+      "text": "Thanks. Enjoy your walk."
+    },
+    "street_npc_reply_1": {
+      "start": 78.62820861678004,
+      "duration": 4.071383219954648,
+      "text": "Thank you. I'll remember that. Come and say hello again."
+    },
+    "street_muhammad_reply_2": {
+      "start": 83.1995918367347,
+      "duration": 2.710385487528345,
+      "text": "Move aside. I don't want trouble."
+    },
+    "street_aisha_reply_2": {
+      "start": 86.40997732426304,
+      "duration": 1.7789569160997731,
+      "text": "You'd better stay out of my way."
+    },
+    "street_musa_reply_2": {
+      "start": 88.68893424036281,
+      "duration": 1.093968253968254,
+      "text": "Don't mess with me."
+    },
+    "street_jade_reply_2": {
+      "start": 90.28290249433107,
+      "duration": 2.5219954648526075,
+      "text": "Keep your distance, or we'll have a problem."
+    },
+    "street_npc_reply_2": {
+      "start": 93.30489795918368,
+      "duration": 2.3388662131519276,
+      "text": "Don't threaten me. Back off!"
+    },
+    "park_muhammad_open": {
+      "start": 96.14376417233561,
+      "duration": 3.1631746031746033,
+      "text": "This park looks peaceful. Do you come here often?"
+    },
+    "park_aisha_open": {
+      "start": 99.8069387755102,
+      "duration": 2.313015873015873,
+      "text": "Is this a good place for a quiet break?"
+    },
+    "park_musa_open": {
+      "start": 102.61995464852608,
+      "duration": 3.3489342403628117,
+      "text": "Now this is a nice spot! How are you doing?"
+    },
+    "park_jade_open": {
+      "start": 106.46888888888888,
+      "duration": 3.3024943310657595,
+      "text": "I like the trees here. Is it usually this quiet?"
+    },
+    "park_npc_0": {
+      "start": 110.27138321995464,
+      "duration": 2.6497052154195013,
+      "text": "I like taking a walk here before going home."
+    },
+    "park_npc_1": {
+      "start": 113.42108843537414,
+      "duration": 3.4882539682539684,
+      "text": "I stopped for a short break. It's quieter than the roads."
+    },
+    "park_npc_2": {
+      "start": 117.40934240362812,
+      "duration": 2.8354648526077098,
+      "text": "It's a good place to relax and meet neighbours."
+    },
+    "park_muhammad_reply_0": {
+      "start": 120.74480725623583,
+      "duration": 2.03437641723356,
+      "text": "Would you like some company on your walk?"
+    },
+    "park_aisha_reply_0": {
+      "start": 123.27918367346939,
+      "duration": 1.697687074829932,
+      "text": "Shall we walk a little together?"
+    },
+    "park_musa_reply_0": {
+      "start": 125.47687074829932,
+      "duration": 2.371065759637188,
+      "text": "Come on, let's take a short walk together."
+    },
+    "park_jade_reply_0": {
+      "start": 128.3479365079365,
+      "duration": 1.8718367346938776,
+      "text": "Would a little company be all right?"
+    },
+    "park_npc_reply_0": {
+      "start": 130.7197732426304,
+      "duration": 3.012244897959184,
+      "text": "Sure. I'll walk beside you for a little while."
+    },
+    "park_muhammad_reply_1": {
+      "start": 134.23201814058956,
+      "duration": 1.7325170068027211,
+      "text": "I'm going to take a break here."
+    },
+    "park_aisha_reply_1": {
+      "start": 136.4645351473923,
+      "duration": 1.6744671201814059,
+      "text": "I need a quiet moment."
+    },
+    "park_musa_reply_1": {
+      "start": 138.6390022675737,
+      "duration": 1.7557369614512472,
+      "text": "I'm taking it easy today."
+    },
+    "park_jade_reply_1": {
+      "start": 140.89473922902494,
+      "duration": 2.1620861678004535,
+      "text": "I'll stay here and clear my head."
+    },
+    "park_npc_reply_1": {
+      "start": 143.5568253968254,
+      "duration": 3.8829931972789113,
+      "text": "That's a good idea. Take your time and look after yourself."
+    },
+    "park_muhammad_reply_2": {
+      "start": 147.9398185941043,
+      "duration": 2.524625850340136,
+      "text": "Enjoy the park. I'll see you later."
+    },
+    "park_aisha_reply_2": {
+      "start": 150.96444444444444,
+      "duration": 1.9673469387755103,
+      "text": "Thanks. I'll carry on now."
+    },
+    "park_musa_reply_2": {
+      "start": 153.43179138321995,
+      "duration": 2.3156462585034014,
+      "text": "Have a good one. See you around!"
+    },
+    "park_jade_reply_2": {
+      "start": 156.24743764172337,
+      "duration": 2.4317460317460315,
+      "text": "Take care. Maybe we'll meet again."
+    },
+    "park_npc_reply_2": {
+      "start": 159.1791836734694,
+      "duration": 2.3969160997732426,
+      "text": "See you later. Enjoy your day."
+    },
+    "car_muhammad_open": {
+      "start": 162.07609977324262,
+      "duration": 2.803265306122449,
+      "text": "Hello. I'm choosing a car for a drive."
+    },
+    "car_aisha_open": {
+      "start": 165.37936507936507,
+      "duration": 2.4781859410430838,
+      "text": "Hello. Do you know these vehicles?"
+    },
+    "car_musa_open": {
+      "start": 168.35755102040815,
+      "duration": 3.0006349206349205,
+      "text": "These cars look good! Which one would you pick?"
+    },
+    "car_jade_open": {
+      "start": 171.85818594104308,
+      "duration": 2.9774149659863944,
+      "text": "Hello. Is the road clear for a drive?"
+    },
+    "car_npc_0": {
+      "start": 175.3356009070295,
+      "duration": 4.022312925170068,
+      "text": "There are cars and trucks here. Drive carefully around people."
+    },
+    "car_npc_1": {
+      "start": 179.85791383219956,
+      "duration": 2.9863945578231292,
+      "text": "The road looks clear, but check before you pull out."
+    },
+    "car_npc_2": {
+      "start": 183.3443083900227,
+      "duration": 3.395374149659864,
+      "text": "I like the gold car. It's easy to spot from here."
+    },
+    "car_muhammad_reply_0": {
+      "start": 187.23968253968255,
+      "duration": 2.1969160997732424,
+      "text": "I'll watch out for pedestrians."
+    },
+    "car_aisha_reply_0": {
+      "start": 189.93659863945578,
+      "duration": 2.289795918367347,
+      "text": "I'll keep the speed down around people."
+    },
+    "car_musa_reply_0": {
+      "start": 192.72639455782314,
+      "duration": 2.50140589569161,
+      "text": "Don't worry. I'll take it slowly."
+    },
+    "car_jade_reply_0": {
+      "start": 195.72780045351473,
+      "duration": 2.022766439909297,
+      "text": "I'll check the road before I go."
+    },
+    "car_npc_reply_0": {
+      "start": 198.25056689342404,
+      "duration": 3.070294784580499,
+      "text": "Thanks. That makes it safer for everyone."
+    },
+    "car_muhammad_reply_1": {
+      "start": 201.82086167800455,
+      "duration": 2.4291156462585035,
+      "text": "Are there taxis or buses here yet?"
+    },
+    "car_aisha_reply_1": {
+      "start": 204.74997732426303,
+      "duration": 1.8137868480725623,
+      "text": "Is public transport running?"
+    },
+    "car_musa_reply_1": {
+      "start": 207.0637641723356,
+      "duration": 2.3826757369614513,
+      "text": "Can I catch a bus or a taxi?"
+    },
+    "car_jade_reply_1": {
+      "start": 209.94643990929706,
+      "duration": 2.289795918367347,
+      "text": "Is there a way to get a ride around the city?"
+    },
+    "car_npc_reply_1": {
+      "start": 212.7362358276644,
+      "duration": 5.278820861678004,
+      "text": "Not yet. For now we walk or you drive. Buses and taxis will come later."
+    },
+    "car_muhammad_reply_2": {
+      "start": 218.5150566893424,
+      "duration": 1.9647165532879818,
+      "text": "I'll be the fastest driver here."
+    },
+    "car_aisha_reply_2": {
+      "start": 220.9797732426304,
+      "duration": 2.1272562358276645,
+      "text": "Nobody is going to slow me down."
+    },
+    "car_musa_reply_2": {
+      "start": 223.60702947845806,
+      "duration": 2.03437641723356,
+      "text": "Watch me race down that road!"
+    },
+    "car_jade_reply_2": {
+      "start": 226.1414058956916,
+      "duration": 2.580045351473923,
+      "text": "I want to see how fast this car can go."
+    },
+    "car_npc_reply_2": {
+      "start": 229.22145124716553,
+      "duration": 3.476643990929705,
+      "text": "Please don't race near people. I'm keeping my distance."
+    },
+    "house_muhammad_open": {
+      "start": 233.19809523809525,
+      "duration": 3.6185941043083902,
+      "text": "Hello. It's good to be indoors. How are you?"
+    },
+    "house_aisha_open": {
+      "start": 237.31668934240363,
+      "duration": 2.745215419501134,
+      "text": "Hello. Is this a good time to visit?"
+    },
+    "house_musa_open": {
+      "start": 240.56190476190477,
+      "duration": 3.1863945578231294,
+      "text": "This home feels comfortable. How's it going?"
+    },
+    "house_jade_open": {
+      "start": 244.2482993197279,
+      "duration": 2.803265306122449,
+      "text": "Hello. I hope I'm not disturbing you."
+    },
+    "house_npc_0": {
+      "start": 247.55156462585035,
+      "duration": 3.406984126984127,
+      "text": "Make yourself comfortable. There's a sofa and a bed."
+    },
+    "house_npc_1": {
+      "start": 251.45854875283447,
+      "duration": 2.1853061224489796,
+      "text": "I was having a quiet moment at home."
+    },
+    "house_npc_2": {
+      "start": 254.14385487528344,
+      "duration": 3.116734693877551,
+      "text": "Welcome. Let's keep things peaceful in here."
+    },
+    "house_muhammad_reply_0": {
+      "start": 257.76058956916097,
+      "duration": 1.9182766439909298,
+      "text": "Where can I sit or have a rest?"
+    },
+    "house_aisha_reply_0": {
+      "start": 260.17886621315193,
+      "duration": 1.9182766439909298,
+      "text": "Is there somewhere I can sit?"
+    },
+    "house_musa_reply_0": {
+      "start": 262.59714285714284,
+      "duration": 2.1156462585034013,
+      "text": "I'd like to relax for a moment."
+    },
+    "house_jade_reply_0": {
+      "start": 265.2127891156463,
+      "duration": 1.8021768707482992,
+      "text": "Can I take a quiet break here?"
+    },
+    "house_npc_reply_0": {
+      "start": 267.51496598639454,
+      "duration": 5.392290249433106,
+      "text": "Walk beside the sofa to sit, or beside the bed to sleep. Press E to use it."
+    },
+    "house_muhammad_reply_1": {
+      "start": 273.4072562358277,
+      "duration": 1.6164172335600906,
+      "text": "Thank you for welcoming me."
+    },
+    "house_aisha_reply_1": {
+      "start": 275.52367346938775,
+      "duration": 2.2343764172335603,
+      "text": "Thanks. I appreciate it."
+    },
+    "house_musa_reply_1": {
+      "start": 278.25804988662134,
+      "duration": 2.2692063492063492,
+      "text": "That's kind of you. Thank you!"
+    },
+    "house_jade_reply_1": {
+      "start": 281.0272562358277,
+      "duration": 2.199546485260771,
+      "text": "Thank you. I'll be considerate."
+    },
+    "house_npc_reply_1": {
+      "start": 283.72680272108846,
+      "duration": 2.9541950113378683,
+      "text": "You're welcome. It's nice to have a friendly visitor."
+    },
+    "house_muhammad_reply_2": {
+      "start": 287.1809977324263,
+      "duration": 1.7789569160997731,
+      "text": "I'll let you get some rest."
+    },
+    "house_aisha_reply_2": {
+      "start": 289.4599546485261,
+      "duration": 1.6048072562358278,
+      "text": "I'll leave you in peace now."
+    },
+    "house_musa_reply_2": {
+      "start": 291.5647619047619,
+      "duration": 2.8961451247165533,
+      "text": "See you later. Enjoy your quiet time."
+    },
+    "house_jade_reply_2": {
+      "start": 294.96090702947845,
+      "duration": 2.1298866213151926,
+      "text": "I'll go now. Take care."
+    },
+    "house_npc_reply_2": {
+      "start": 297.59079365079367,
+      "duration": 3.41859410430839,
+      "text": "Take care. Use the front door when you're ready to leave."
+    },
+    "injured_muhammad_open": {
+      "start": 301.50938775510207,
+      "duration": 2.547845804988662,
+      "text": "You look hurt. Are you all right?"
+    },
+    "injured_aisha_open": {
+      "start": 304.5572335600907,
+      "duration": 2.222766439909297,
+      "text": "Are you injured? Do you need a break?"
+    },
+    "injured_musa_open": {
+      "start": 307.28,
+      "duration": 2.6523356009070294,
+      "text": "That looked painful. Are you okay?"
+    },
+    "injured_jade_open": {
+      "start": 310.43233560090704,
+      "duration": 2.3853061224489798,
+      "text": "You don't look well. Can I help?"
+    },
+    "injured_npc_0": {
+      "start": 313.317641723356,
+      "duration": 3.03546485260771,
+      "text": "I'm hurt. I need to take things slowly."
+    },
+    "injured_npc_1": {
+      "start": 316.8531065759637,
+      "duration": 3.0470748299319728,
+      "text": "My health is low. I could do with some peace."
+    },
+    "injured_npc_2": {
+      "start": 320.4001814058957,
+      "duration": 2.336235827664399,
+      "text": "I need to recover before I carry on."
+    },
+    "injured_muhammad_reply_0": {
+      "start": 323.2364172335601,
+      "duration": 2.3504761904761904,
+      "text": "Take your time. I won't bother you."
+    },
+    "injured_aisha_reply_0": {
+      "start": 326.0868934240363,
+      "duration": 2.083446712018141,
+      "text": "Rest for a moment. You're safe."
+    },
+    "injured_musa_reply_0": {
+      "start": 328.67034013605445,
+      "duration": 2.3969160997732426,
+      "text": "Easy now. Have a quiet break."
+    },
+    "injured_jade_reply_0": {
+      "start": 331.56725623582764,
+      "duration": 2.710385487528345,
+      "text": "Take a breath. I won't start any trouble."
+    },
+    "injured_npc_reply_0": {
+      "start": 334.777641723356,
+      "duration": 2.8845351473922904,
+      "text": "Thank you. I'll calm down and take a rest."
+    },
+    "injured_muhammad_reply_1": {
+      "start": 338.1621768707483,
+      "duration": 3.105124716553288,
+      "text": "I'm sorry if I caused that. Let's stop fighting."
+    },
+    "injured_aisha_reply_1": {
+      "start": 341.7673015873016,
+      "duration": 2.3388662131519276,
+      "text": "I'm sorry. I don't want to hurt you."
+    },
+    "injured_musa_reply_1": {
+      "start": 344.60616780045353,
+      "duration": 2.7568253968253966,
+      "text": "Sorry about that. Let's call it a day."
+    },
+    "injured_jade_reply_1": {
+      "start": 347.8629931972789,
+      "duration": 2.710385487528345,
+      "text": "I was wrong to cause trouble. I'm sorry."
+    },
+    "injured_npc_reply_1": {
+      "start": 351.07337868480727,
+      "duration": 3.80172335600907,
+      "text": "I accept your apology. Let's leave the fighting behind us."
+    },
+    "injured_muhammad_reply_2": {
+      "start": 355.37510204081633,
+      "duration": 2.231746031746032,
+      "text": "You're not so tough now, are you?"
+    },
+    "injured_aisha_reply_2": {
+      "start": 358.10684807256234,
+      "duration": 1.9763265306122448,
+      "text": "You should have stayed out of my way."
+    },
+    "injured_musa_reply_2": {
+      "start": 360.5831746031746,
+      "duration": 1.453877551020408,
+      "text": "Can't take a little fight?"
+    },
+    "injured_jade_reply_2": {
+      "start": 362.537052154195,
+      "duration": 2.231746031746032,
+      "text": "You're only slowing everyone down."
+    },
+    "injured_npc_reply_2": {
+      "start": 365.268798185941,
+      "duration": 2.4201360544217687,
+      "text": "That's enough. Leave me alone!"
+    },
+    "hostile_muhammad_open": {
+      "start": 368.1889342403628,
+      "duration": 2.6987755102040816,
+      "text": "Wait. Can we talk instead of fighting?"
+    },
+    "hostile_aisha_open": {
+      "start": 371.3877097505669,
+      "duration": 2.2924263038548753,
+      "text": "Stop a moment. I want to talk."
+    },
+    "hostile_musa_open": {
+      "start": 374.1801360544218,
+      "duration": 2.4201360544217687,
+      "text": "Hold on. Let's sort this out."
+    },
+    "hostile_jade_open": {
+      "start": 377.1002721088435,
+      "duration": 3.1863945578231294,
+      "text": "Wait. This isn't helping either of us."
+    },
+    "hostile_npc_0": {
+      "start": 380.7866666666667,
+      "duration": 3.15156462585034,
+      "text": "You started trouble. What do you want now?"
+    },
+    "hostile_npc_1": {
+      "start": 384.438231292517,
+      "duration": 2.8961451247165533,
+      "text": "I'm angry. Give me a good reason to stop."
+    },
+    "hostile_npc_2": {
+      "start": 387.83437641723356,
+      "duration": 1.9066666666666667,
+      "text": "You need to explain yourself."
+    },
+    "hostile_muhammad_reply_0": {
+      "start": 390.24104308390025,
+      "duration": 2.3156462585034014,
+      "text": "I'm sorry. I won't hit you again."
+    },
+    "hostile_aisha_reply_0": {
+      "start": 393.0566893424036,
+      "duration": 2.408526077097506,
+      "text": "I was wrong. Let's stop now."
+    },
+    "hostile_musa_reply_0": {
+      "start": 395.96521541950113,
+      "duration": 2.2924263038548753,
+      "text": "Sorry. I got carried away."
+    },
+    "hostile_jade_reply_0": {
+      "start": 398.757641723356,
+      "duration": 2.3969160997732426,
+      "text": "I'm sorry. I'd rather make peace."
+    },
+    "hostile_npc_reply_0": {
+      "start": 401.65455782312927,
+      "duration": 4.663492063492064,
+      "text": "All right. I accept your apology. Let's both calm down."
+    },
+    "hostile_muhammad_reply_1": {
+      "start": 406.81804988662134,
+      "duration": 2.443356009070295,
+      "text": "I'll walk away. No more trouble."
+    },
+    "hostile_aisha_reply_1": {
+      "start": 409.7614058956916,
+      "duration": 2.4549659863945577,
+      "text": "I'm leaving. Let's stop here."
+    },
+    "hostile_musa_reply_1": {
+      "start": 412.71637188208615,
+      "duration": 1.6048072562358278,
+      "text": "I'll give you some space."
+    },
+    "hostile_jade_reply_1": {
+      "start": 414.821179138322,
+      "duration": 2.605895691609977,
+      "text": "I'll go. We don't need another fight."
+    },
+    "hostile_npc_reply_1": {
+      "start": 417.927074829932,
+      "duration": 2.9193650793650794,
+      "text": "Fine. Keep your distance and we'll leave it there."
+    },
+    "hostile_muhammad_reply_2": {
+      "start": 421.34643990929703,
+      "duration": 1.5119274376417233,
+      "text": "I'm not backing down."
+    },
+    "hostile_aisha_reply_2": {
+      "start": 423.3583673469388,
+      "duration": 2.022766439909297,
+      "text": "You haven't heard the last of this."
+    },
+    "hostile_musa_reply_2": {
+      "start": 425.88113378684807,
+      "duration": 2.187936507936508,
+      "text": "Come on then. I'm still here."
+    },
+    "hostile_jade_reply_2": {
+      "start": 428.5690702947846,
+      "duration": 1.9066666666666667,
+      "text": "I won't let you push me around."
+    },
+    "hostile_npc_reply_2": {
+      "start": 430.9757369614513,
+      "duration": 2.8961451247165533,
+      "text": "Then stay back. I'm ready to defend myself."
+    },
+    "friend_muhammad_open": {
+      "start": 434.3718820861678,
+      "duration": 2.571065759637188,
+      "text": "Hello again! It's good to see you."
+    },
+    "friend_aisha_open": {
+      "start": 437.442947845805,
+      "duration": 2.2924263038548753,
+      "text": "Hello again. How have you been?"
+    },
+    "friend_musa_open": {
+      "start": 440.2353741496599,
+      "duration": 2.9774149659863944,
+      "text": "There's a friendly face! How's your day?"
+    },
+    "friend_jade_open": {
+      "start": 443.7127891156463,
+      "duration": 2.9425850340136055,
+      "text": "Hello again. It's nice to meet you here."
+    },
+    "friend_npc_0": {
+      "start": 447.15537414965985,
+      "duration": 3.2212244897959184,
+      "text": "Good to see you too. I remember you being kind."
+    },
+    "friend_npc_1": {
+      "start": 450.8765986394558,
+      "duration": 2.9541950113378683,
+      "text": "Hello, my friend. I'm glad we met again."
+    },
+    "friend_npc_2": {
+      "start": 454.3307936507936,
+      "duration": 2.9863945578231292,
+      "text": "It's nice seeing a familiar, friendly face."
+    },
+    "friend_muhammad_reply_0": {
+      "start": 457.81718820861676,
+      "duration": 1.697687074829932,
+      "text": "Would you like to walk with me?"
+    },
+    "friend_aisha_reply_0": {
+      "start": 460.0148752834467,
+      "duration": 1.5351473922902494,
+      "text": "Do you want some company?"
+    },
+    "friend_musa_reply_0": {
+      "start": 462.05002267573695,
+      "duration": 2.057596371882086,
+      "text": "Come along for a short walk with me!"
+    },
+    "friend_jade_reply_0": {
+      "start": 464.60761904761904,
+      "duration": 2.5452154195011336,
+      "text": "Would you like to join me for a little while?"
+    },
+    "friend_npc_reply_0": {
+      "start": 467.65283446712016,
+      "duration": 3.5346938775510206,
+      "text": "I'd like that. I'll stay nearby for a short walk."
+    },
+    "friend_muhammad_reply_1": {
+      "start": 471.6875283446712,
+      "duration": 2.30140589569161,
+      "text": "Could you help me find the east park?"
+    },
+    "friend_aisha_reply_1": {
+      "start": 474.4889342403628,
+      "duration": 2.1504761904761907,
+      "text": "Which way should I go for the east park?"
+    },
+    "friend_musa_reply_1": {
+      "start": 477.139410430839,
+      "duration": 2.1272562358276645,
+      "text": "Remind me where the east park is?"
+    },
+    "friend_jade_reply_1": {
+      "start": 479.76666666666665,
+      "duration": 2.278185941043084,
+      "text": "Can you point me towards the east park?"
+    },
+    "friend_npc_reply_1": {
+      "start": 482.54485260770974,
+      "duration": 2.7800453514739227,
+      "text": "Of course. I've marked the park on your map."
+    },
+    "friend_muhammad_reply_2": {
+      "start": 485.82489795918366,
+      "duration": 2.3853061224489798,
+      "text": "Take care. I'll see you around."
+    },
+    "friend_aisha_reply_2": {
+      "start": 488.71020408163264,
+      "duration": 1.9905668934240364,
+      "text": "Thanks. See you later."
+    },
+    "friend_musa_reply_2": {
+      "start": 491.2007709750567,
+      "duration": 1.8137868480725623,
+      "text": "Have a good day, my friend!"
+    },
+    "friend_jade_reply_2": {
+      "start": 493.5145578231292,
+      "duration": 2.5362358276643993,
+      "text": "Take care. I'm glad we caught up."
+    },
+    "friend_npc_reply_2": {
+      "start": 496.55079365079365,
+      "duration": 1.7441269841269842,
+      "text": "See you later, my friend."
+    },
+    "event_muhammad_enter_car": {
+      "start": 498.79492063492063,
+      "duration": 1.6628571428571428,
+      "text": "Let's take a drive."
+    },
+    "event_aisha_enter_car": {
+      "start": 500.9577777777778,
+      "duration": 2.03437641723356,
+      "text": "I'll check the road before I go."
+    },
+    "event_musa_enter_car": {
+      "start": 503.4921541950113,
+      "duration": 1.407437641723356,
+      "text": "Time for a drive!"
+    },
+    "event_jade_enter_car": {
+      "start": 505.3995918367347,
+      "duration": 1.9414965986394557,
+      "text": "Let's see where this road goes."
+    },
+    "event_muhammad_exit_car": {
+      "start": 507.84108843537416,
+      "duration": 1.407437641723356,
+      "text": "I'll carry on on foot."
+    },
+    "event_aisha_exit_car": {
+      "start": 509.7485260770975,
+      "duration": 2.6755555555555555,
+      "text": "Stopped safely. I'll get out now."
+    },
+    "event_musa_exit_car": {
+      "start": 512.924081632653,
+      "duration": 1.6048072562358278,
+      "text": "That was a good drive."
+    },
+    "event_jade_exit_car": {
+      "start": 515.0288888888889,
+      "duration": 1.987936507936508,
+      "text": "I'll explore on foot from here."
+    },
+    "event_muhammad_enter_house": {
+      "start": 517.5168253968254,
+      "duration": 1.686077097505669,
+      "text": "Let's have a look inside."
+    },
+    "event_aisha_enter_house": {
+      "start": 519.702902494331,
+      "duration": 1.920907029478458,
+      "text": "Hello? I'm coming in."
+    },
+    "event_musa_enter_house": {
+      "start": 522.1238095238095,
+      "duration": 1.7905668934240362,
+      "text": "It's good to be indoors."
+    },
+    "event_jade_enter_house": {
+      "start": 524.4143764172336,
+      "duration": 2.4549659863945577,
+      "text": "A quiet home. Let's take a look."
+    },
+    "event_muhammad_exit_house": {
+      "start": 527.3693424036281,
+      "duration": 1.709297052154195,
+      "text": "Back out into the city."
+    },
+    "event_aisha_exit_house": {
+      "start": 529.5786394557823,
+      "duration": 1.8253968253968254,
+      "text": "I'll close the door behind me."
+    },
+    "event_musa_exit_house": {
+      "start": 531.9040362811792,
+      "duration": 1.7557369614512472,
+      "text": "Time to get moving again!"
+    },
+    "event_jade_exit_house": {
+      "start": 534.1597732426304,
+      "duration": 1.8021768707482992,
+      "text": "I'll head back outside now."
+    },
+    "event_muhammad_sit": {
+      "start": 536.4619501133786,
+      "duration": 1.5583673469387755,
+      "text": "I'll sit here for a moment."
+    },
+    "event_aisha_sit": {
+      "start": 538.5203174603174,
+      "duration": 1.6280272108843536,
+      "text": "A short break will help."
+    },
+    "event_musa_sit": {
+      "start": 540.6483446712018,
+      "duration": 2.1040362811791384,
+      "text": "This looks like a comfortable seat."
+    },
+    "event_jade_sit": {
+      "start": 543.2523809523809,
+      "duration": 2.03437641723356,
+      "text": "I'll sit and think for a moment."
+    },
+    "event_muhammad_sleep": {
+      "start": 545.7867573696145,
+      "duration": 2.8613151927437643,
+      "text": "I need some sleep. See you in a little while."
+    },
+    "event_aisha_sleep": {
+      "start": 549.1480725623583,
+      "duration": 1.8834467120181406,
+      "text": "Time to rest and recover."
+    },
+    "event_musa_sleep": {
+      "start": 551.5315192743764,
+      "duration": 1.3609977324263038,
+      "text": "I'll have a little sleep."
+    },
+    "event_jade_sleep": {
+      "start": 553.3925170068027,
+      "duration": 1.5815873015873017,
+      "text": "I'll get some rest now."
+    },
+    "event_muhammad_wake": {
+      "start": 555.47410430839,
+      "duration": 2.199546485260771,
+      "text": "I'm awake. Let's get going."
+    },
+    "event_aisha_wake": {
+      "start": 558.1736507936508,
+      "duration": 1.5351473922902494,
+      "text": "Rested and ready."
+    },
+    "event_musa_wake": {
+      "start": 560.2087981859411,
+      "duration": 2.002176870748299,
+      "text": "That helped! Let's go."
+    },
+    "event_jade_wake": {
+      "start": 562.7109750566893,
+      "duration": 1.5699773242630386,
+      "text": "I'm ready to carry on now."
+    },
+    "event_muhammad_switch": {
+      "start": 564.7809523809524,
+      "duration": 2.489795918367347,
+      "text": "I'm Muhammad. Let's explore the city."
+    },
+    "event_aisha_switch": {
+      "start": 567.7707482993197,
+      "duration": 2.3620861678004537,
+      "text": "Aisha here. What's the plan?"
+    },
+    "event_musa_switch": {
+      "start": 570.6328344671202,
+      "duration": 2.3272562358276643,
+      "text": "Musa here. Ready when you are!"
+    },
+    "event_jade_switch": {
+      "start": 573.4600907029478,
+      "duration": 2.4781859410430838,
+      "text": "Jade here. Let's see what's happening."
+    },
+    "event_muhammad_fold": {
+      "start": 576.4382766439909,
+      "duration": 1.7441269841269842,
+      "text": "I'll stand here for a moment."
+    },
+    "event_aisha_fold": {
+      "start": 578.6824036281179,
+      "duration": 1.152018140589569,
+      "text": "I'll wait here."
+    },
+    "event_musa_fold": {
+      "start": 580.3344217687074,
+      "duration": 1.1752380952380952,
+      "text": "I'll take a moment."
+    },
+    "event_jade_fold": {
+      "start": 582.0096598639456,
+      "duration": 1.5583673469387755,
+      "text": "Just a quiet moment."
+    }
   }
 }

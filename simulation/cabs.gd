@@ -310,6 +310,7 @@ func unlock(person: Node3D, pin: String) -> bool:
 	trip.state = "boarding"
 	car.path = journey_path
 	car.index = 0
+	if person.has_method("stop_activity"): person.stop_activity()
 	person.riding_service = self
 	person.set_meta("cab_car",int(trip.car))
 	person.set_meta("cab_camera_mode",0)
@@ -348,6 +349,7 @@ func leave_waiting(person: Node3D) -> bool:
 	var key: String = economy.key_for(person)
 	if not bookings.has(key) or bookings[key].state!="awaiting_destination": return false
 	var car: Dictionary = cars[int(bookings[key].car)]
+	person.visual.dismount(person)
 	person.riding_service = null
 	person.global_position = boarding_point(person)
 	person.visual.show()
@@ -358,21 +360,27 @@ func leave_waiting(person: Node3D) -> bool:
 
 func seat_position(person: Node3D) -> Vector3:
 	var model: Node3D = cars[int(person.get_meta("cab_car"))].node.get_meta("graphics")
-	return model.to_global(Vector3(0.4,0.04,-0.35))
+	return model.to_global(Vector3(0.4,0.26,-0.35))
 
 func rider_position(person: Node3D) -> Vector3:
 	var car: Dictionary = cars[int(person.get_meta("cab_car"))]
 	if car.state!="boarding": return seat_position(person)
 	var t := float(car.board_clock)
-	var door: Vector3 = car.node.to_global(Vector3(1.05,0.05,0))
+	var door: Vector3 = car.node.to_global(Vector3(1.05,0.30,0))
 	if t<0.6: return car.board_start
 	if t<1.4: return car.board_start.lerp(door,(t-0.6)/0.8)
 	return door.lerp(seat_position(person),clampf((t-1.4)/0.8,0,1))
 
 func _pose(person: Node3D, clip: String, car: Dictionary) -> void:
+	if clip=="seated":
+		person.visual.mount(car.node.get_meta("graphics"),Vector3(0.4,0.26,-0.35),PI,true)
+	elif person.visual.mounted:
+		person.visual.dismount(person)
 	if person.has_method("_play_clip"): person._play_clip(clip)
 	else: person.visual.play(clip)
-	person.visual.global_rotation.y = car.node.global_rotation.y+PI
+	if not person.visual.mounted:
+		if clip=="walk": person.visual.face(car.node.global_position-person.global_position,1)
+		else: person.visual.global_rotation.y = car.node.global_rotation.y+PI
 
 func _branding(car: Dictionary, text: String) -> void:
 	for display in car.node.get_meta("displays",[]):
@@ -544,6 +552,7 @@ func _finish(car: Dictionary, trip: Dictionary) -> void:
 	var person: Node3D = trip.person
 	economy.complete_fare(person)
 	car.node.get_node("CabDialogue").say(person,"arrival")
+	person.visual.dismount(person)
 	person.riding_service = null
 	person.set_meta("cab_waiting",false)
 	_park_at_curb(car)
@@ -587,6 +596,7 @@ func is_pickup_near(person: Node3D) -> bool:
 func _reconcile(person: Node3D) -> void:
 	var key: String = economy.key_for(person)
 	if person.get("riding_service")==self and not bookings.has(key):
+		person.visual.dismount(person)
 		person.riding_service = null
 		person.visual.show()
 		person.collider.set_deferred("disabled",false)
@@ -596,6 +606,7 @@ func _reconcile(person: Node3D) -> void:
 	if trip.state!="queued" and (index<0 or index>=cars.size() or cars[index].booking!=key):
 		_release_orphan(key)
 		if person.get("riding_service")==self:
+			person.visual.dismount(person)
 			person.riding_service = null
 			person.visual.show()
 			person.collider.set_deferred("disabled",false)

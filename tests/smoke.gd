@@ -61,7 +61,7 @@ func check_world():
         if not check(not player.try_enter() and not player.try_exit(), "Repeated E cannot interrupt entry"):
             return
         await finish_transition(player)
-        if not check(player.driving and vehicle.driver_active and player.collider.disabled and not player.visual.visible, "Entry finishes: " + vehicle.display_name):
+        if not check(player.driving and vehicle.driver_active and player.collider.disabled and player.visual.visible and player.visual.get_parent()==vehicle and player.visual.mounted, "Entry finishes: " + vehicle.display_name):
             return
         if not check(game.town.get_node("Spedometer").car_body == vehicle, "Speedometer follows active vehicle"):
             return
@@ -69,10 +69,12 @@ func check_world():
         for other in fleet:
             if other != vehicle:
                 parked_positions[other] = other.global_position
+        var seated_transform: Transform3D=player.visual.transform
         Input.action_press("accelerate")
         for i in range(70):
             await physics_frame
         Input.action_release("accelerate")
+        if not check(player.visual.transform==seated_transform,"Driver stays fixed in the seat while driving"): return
         if not check(vehicle.linear_velocity.length() > 1.0, "Drive: " + vehicle.display_name):
             return
         for other in parked_positions:

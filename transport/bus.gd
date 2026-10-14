@@ -23,6 +23,7 @@ var step_clock := 0.0
 var rider_board_clock := 3.0
 var rider_start := Vector3.ZERO
 var cabin: Node3D
+var passenger_transfers := 0
 var loading: Label3D
 
 func _ready() -> void:
@@ -71,9 +72,16 @@ func _physics_process(delta: float) -> void:
 func advance(delta: float) -> void:
 	if is_instance_valid(rider):
 		rider_board_clock = minf(3.0,rider_board_clock+delta)
+		var motion: Vector3=rider_position()-rider.global_position
 		rider.global_position = rider_position()
-		rider._play_clip("walk" if rider_board_clock<2.5 else "seated")
-		rider.visual.global_rotation.y = rotation.y+PI
+		rider._play_clip("walk" if rider_board_clock<2.0 else "seated")
+		if rider_board_clock>=2: rider.visual.fit_rider(false)
+		if rider_board_clock>=3:
+			rider.visual.mount(model,Vector3(0.70,0.43,1.8))
+		elif rider_board_clock<2:
+			rider.visual.face(motion,1)
+		else:
+			rider.visual.global_rotation.y=rotation.y+PI
 	get_node("ServiceAudio").set_motion(speed,"bus" if visible else "silent")
 	if state=="depot":
 		speed = 0
@@ -91,7 +99,7 @@ func advance(delta: float) -> void:
 			boarding_clock = 0
 			manager.board_next(self)
 		model.animate_doors(move_toward(model.door_fraction,1.0,delta*1.6))
-		if dwell <= 0 and rider_board_clock>=3:
+		if dwell <= 0 and rider_board_clock>=3 and passenger_transfers==0:
 			state = "closing"
 	elif state == "closing":
 		speed = 0
@@ -156,7 +164,7 @@ func entrance() -> Vector3:
 	return to_global(Vector3(1.7,0,3.5))
 
 func seat_position() -> Vector3:
-	return to_global(Vector3(0.78,0.34,1.8))
+	return to_global(Vector3(0.70,0.43,1.8))
 
 func board(person: CharacterBody3D) -> bool:
 	if state != "dwell" or model.door_fraction < 0.9 or is_instance_valid(rider) or person.global_position.distance_to(entrance()) > 4.0 or dwell_elapsed>56:
@@ -187,6 +195,7 @@ func leave(person: CharacterBody3D) -> bool:
 	if person != rider or state != "dwell" or model.door_fraction < 0.9 or rider_board_clock<3:
 		bell = true
 		return false
+	person.visual.dismount(person)
 	person.global_position = route.stops[stop_index].pavement+Vector3(0,0.1,0)
 	person.velocity = Vector3.ZERO
 	person.riding_bus = null
@@ -202,8 +211,8 @@ func leave(person: CharacterBody3D) -> bool:
 
 func rider_position() -> Vector3:
 	if rider_board_clock>=3: return seat_position()
-	var door := entrance()+Vector3(0,0.18,0)
-	var aisle := to_global(Vector3(0.5,0.34,3.1))
+	var door := entrance()+Vector3(0,0.6,0)
+	var aisle := to_global(Vector3(0.15,0.6,3.1))
 	if rider_board_clock<1: return rider_start.lerp(door,rider_board_clock)
 	if rider_board_clock<2: return door.lerp(aisle,rider_board_clock-1)
 	return aisle.lerp(seat_position(),rider_board_clock-2)
@@ -211,7 +220,7 @@ func rider_position() -> Vector3:
 func npc_seat(index: int) -> Vector3:
 	var row := int(index/2.0)%5
 	var deck := 1.95 if index<10 else 0.0
-	return Vector3(-0.78 if index%2==0 else 0.78,0.02+deck,-3.4+row*1.3)
+	return Vector3(-0.75 if index%2==0 else 0.70,0.13+deck,-3.4+row*1.3)
 
 func free_seat() -> int:
 	for index in range(19): # Seat 19 stays available for the playable character.
@@ -220,6 +229,21 @@ func free_seat() -> int:
 			if int(record.get("seat",record.person.get_meta("bus_seat",-1)))==index: used=true; break
 		if not used: return index
 	return -1
+
+func boarding_path(index: int) -> Array[Vector3]:
+	var seat := npc_seat(index)
+	var points: Array[Vector3] = [Vector3(1.7,0.05,3.5),Vector3(1.28,0.6,3.5),Vector3(0.15,0.6,3.5)]
+	if index<10:
+		points.append(Vector3(0.0,0.6,-4.1))
+		points.append(Vector3(-0.75,0.6,-4.1))
+		for step in range(1,10): points.append(Vector3(-0.75,0.6+step*1.95/9.0,-4.1+step*0.18))
+		points.append(Vector3(0,2.55,-2.48))
+	points.append(Vector3(0,0.6+(1.95 if index<10 else 0.0),seat.z))
+	points.append(seat)
+	return points
+
+func transfer_duration(a: Vector3,b: Vector3) -> float:
+	return maxf(0.12,a.distance_to(b)/2.4)
 
 func rebuild_cabin() -> void:
 	if not is_instance_valid(cabin): return

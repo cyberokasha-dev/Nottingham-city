@@ -8,7 +8,7 @@ static func make(number: int) -> Node3D:
 	var dark := G.material(Color("17232c"),0.35)
 	var glass := G.material(Color(0.25,0.46,0.57,0.24),0.2)
 	var light := G.material(Color("d4f6ff"),0.0,true)
-	G.box(model,Vector3(0,0.43,0),Vector3(1.72,0.18,3.9),dark)
+	G.box(model,Vector3(0,0.22,0),Vector3(1.72,0.12,3.9),dark)
 	# Rounded nose, tail and low sills leave a real passenger opening on each side.
 	_shell(model,[[0.72,0.81,0.48,0.94],[1.38,0.94,0.46,0.88],[1.96,0.83,0.5,0.74],[2.08,0.67,0.54,0.66]],gold)
 	_shell(model,[[-2.06,0.68,0.5,0.77],[-1.78,0.91,0.46,0.92],[-1.05,0.82,0.48,1.02]],gold)

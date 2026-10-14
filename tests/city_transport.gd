@@ -65,6 +65,13 @@ func run_checks() -> void:
     if not check(bus.model.door_fraction>=0.9 and bus.board(person),"Doors open at a stop and player boards"):
         return
     bus.rider_board_clock = 3
+    # A full initial manifest now walks out through the doors before closing.
+    bus.dwell_elapsed = 43
+    for i in range(20*Engine.physics_ticks_per_second):
+        if bus.passenger_transfers==0: break
+        await physics_frame
+    if not check(bus.passenger_transfers==0,"All alighting passengers finish their visible exit before departure"):
+        return
     bus.dwell = 0
     bus.advance(0.1)
     var before: float = bus.distance
@@ -117,9 +124,11 @@ func run_checks() -> void:
     var original_traffic = network.traffic
     network.traffic = rule_only
     var completed_before: int = bus.services_completed
-    for frame in range(18000):
-        rule_only.clock = fposmod(float(frame)/30.0,traffic.CYCLE)
-        bus.advance(1.0/30.0)
+    for frame in range(600*Engine.physics_ticks_per_second):
+        var dt := 1.0/Engine.physics_ticks_per_second
+        rule_only.clock = fposmod(float(frame)*dt,traffic.CYCLE)
+        bus.advance(dt)
+        await physics_frame
         if bus.services_completed>=completed_before+7:
             break
     network.traffic = original_traffic

@@ -71,6 +71,8 @@ func run():
     for record in bus.manifest: record.person.free()
     bus.manifest.clear()
     bus.rebuild_cabin()
+    bus.distance=bus.route.stops[1].distance
+    bus._update_position()
     bus.arrive(1)
     bus.model.animate_doors(1)
     p.global_position=bus.entrance()
@@ -81,11 +83,19 @@ func run():
     bus.leave(p)
     if not check(network.board_next(bus) and bus.manifest.size()==1,"An actual queued commuter pays and boards"): return
     if not check(network.reserve_departure("TEST")==network.elapsed and network.reserve_departure("TEST")==network.elapsed+90,"City terminus departures are separated by 90 seconds"): return
-    await create_timer(1.5).timeout
+    for frame in range(20*Engine.physics_ticks_per_second):
+        if bus.passenger_transfers==0: break
+        await physics_frame
     var commuter=bus.manifest[0].person
     if not check(commuter.get_parent()==bus,"Commuter physically follows the bus after boarding"): return
+    bus.distance=bus.route.stops[bus.manifest[0].destination].distance
+    bus._update_position()
     bus.arrive(bus.manifest[0].destination)
-    if not check(bus.manifest.is_empty() and commuter.get_parent()==network,"Commuter alights at booked stop"): return
+    if not check(bus.manifest.is_empty() and bus.passenger_transfers>0 and commuter.visible,"Commuter starts a visible exit at the booked stop"): return
+    for frame in range(20*Engine.physics_ticks_per_second):
+        if bus.passenger_transfers==0: break
+        await physics_frame
+    if not check(commuter.get_parent()==network,"Commuter completes the aisle and door exit to the pavement"): return
     var cabs=game.cabs
     cabs.set_physics_process(false)
     p.global_position=Vector3(42.8,game.city.traffic.LEVEL,30)

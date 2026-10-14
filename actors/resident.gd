@@ -52,6 +52,9 @@ var relationship: int:
 		relationships[owner] = value
 var follow_actor: CharacterBody3D
 var follow_time := 0.0
+var activity_kind := ""
+var activity_remaining := 0.0
+var activities_completed := 0
 
 func _ready() -> void:
 	add_to_group("people")
@@ -68,7 +71,8 @@ func _ready() -> void:
 	visual.setup(variant,female)
 	dialogue = preload("res://actors/speech.gd").new()
 	dialogue.actor = self
-	dialogue.voice_set = "alba"
+	dialogue.voice_set = "cori" if female else "northern_english_male"
+	dialogue.ambient_enabled = variant%4==0
 	dialogue.variant = variant
 	dialogue.viewer = manager.player
 	add_child(dialogue)
@@ -94,6 +98,7 @@ func say(text: String, duration := 4.0) -> void:
 func talk_to(person: CharacterBody3D, delay := 0.0) -> void:
 	if dead or resting != "" or house_transition or combat_time > 0:
 		return
+	stop_activity()
 	state = "talk"
 	wait_time = 6.0+delay
 	velocity = Vector3.ZERO
@@ -218,6 +223,15 @@ func _physics_process(delta: float) -> void:
 			_move(toward.normalized(),delta,2.3)
 		return
 	guarding = false
+	if activity_remaining>0:
+		activity_remaining=maxf(0,activity_remaining-delta)
+		velocity=Vector3.ZERO
+		_gravity(delta)
+		if activity_remaining<=0:
+			activities_completed+=1
+			stop_activity()
+			wait_time=1.5
+		return
 	if state in ["idle","talk"]:
 		var safe: Vector3 = manager.city.traffic.pavement_point(global_position)
 		safe.y = global_position.y
@@ -304,6 +318,7 @@ func _arrive() -> void:
 	if wants_home and global_position.distance_to(home.entrance()) < 2:
 		_enter_home()
 	else:
+		if start_activity(): return
 		for friend in get_tree().get_nodes_in_group("residents"):
 			if friend != self and not friend.dead and friend.resting == "" and friend.current_house == current_house and friend.combat_time <= 0 and global_position.distance_to(friend.global_position) < 3:
 				begin_conversation(friend)
@@ -380,16 +395,16 @@ func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
 		return
 	var toward: Vector3 = (attacker.global_position-global_position).normalized()
 	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
-		say("Blocked!",1.0)
-		dialogue.speak("blocked")
+		if has_node("ServiceAudio"): get_node("ServiceAudio").effect("punch")
 		return
+	stop_activity()
 	health = maxi(0,health-damage)
 	visual.impact()
 	hit_push = -toward*2.8
 	hurt_time = 0.28
 	guarding = false
 	reply_delay = 0
-	dialogue.speak("hurt")
+	if has_node("ServiceAudio"): get_node("ServiceAudio").effect("punch")
 	opponent = attacker
 	combat_time = 8
 	state = "fight"
@@ -439,3 +454,21 @@ func revive() -> void:
 	visual.play("idle",0.2)
 	say("I'm awake. Let's start again.")
 	dialogue.speak("awake")
+
+func start_activity(kind := "") -> bool:
+	if dead or resting!="" or house_transition or in_conversation or combat_time>0 or is_instance_valid(riding_service) or get_meta("cab_waiting",false) or manager.city.traffic.in_carriageway(global_position): return false
+	if kind=="": kind=["phone","stretch","look","work","rest"][posmod(variant+travel_count,5)]
+	activity_kind=kind
+	activity_remaining=8.0+float(variant%5)*2.0
+	velocity=Vector3.ZERO
+	state="idle"
+	if kind=="rest": visual.play("fold_arms" if visual.animator.has_animation("fold_arms") else "idle")
+	else: visual.start_activity(kind)
+	return true
+
+func stop_activity() -> void:
+	if activity_kind=="": return
+	activity_kind=""
+	activity_remaining=0
+	visual.clip=""
+	visual.play("idle",0)

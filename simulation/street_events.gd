@@ -57,9 +57,9 @@ func _unavailable(person: Node) -> bool:
 
 func _social() -> void:
 	for person in game.population.residents:
-		if _unavailable(person) or person.in_conversation or person.combat_time>0 or person.get_meta("cab_waiting",false) or game.city.traffic.in_carriageway(person.global_position): continue
+		if _unavailable(person) or person.activity_remaining>0 or person.in_conversation or person.combat_time>0 or person.get_meta("cab_waiting",false) or game.city.traffic.in_carriageway(person.global_position): continue
 		for friend in game.population.residents:
-			if friend==person or _unavailable(friend) or friend.in_conversation or friend.combat_time>0 or friend.get_meta("cab_waiting",false): continue
+			if friend==person or friend.activity_remaining>0 or _unavailable(friend) or friend.in_conversation or friend.combat_time>0 or friend.get_meta("cab_waiting",false): continue
 			if person.global_position.distance_to(friend.global_position)>3.5: continue
 			person.begin_conversation(friend)
 			# Occasional harmless pavement disagreement, followed by normal routines.

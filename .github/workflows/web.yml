@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path . --script res://tests/city_transport.gd 2>&1 | tee /tmp/city-transport.log
+          godot --headless --path . --fixed-fps 60 --script res://tests/city_transport.gd 2>&1 | tee /tmp/city-transport.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-transport.log; then exit 1; fi
           grep -q 'CITY_TRANSPORT_OK' /tmp/city-transport.log
       - name: Check street cars can be entered without duplicate traffic
@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path . --script res://tests/economy_and_services.gd 2>&1 | tee /tmp/economy-services.log
+          godot --headless --path . --fixed-fps 60 --script res://tests/economy_and_services.gd 2>&1 | tee /tmp/economy-services.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/economy-services.log; then exit 1; fi
           grep -q 'ECONOMY_SERVICES_OK' /tmp/economy-services.log
       - name: Check residents, combat, furniture, city and all six vehicles
@@ -138,6 +138,13 @@ jobs:
           timeout 60s godot --headless --path . --script res://tests/performance_budget.gd 2>&1 | tee /tmp/performance.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/performance.log; then exit 1; fi
           grep -q 'PERFORMANCE_BUDGET_OK' /tmp/performance.log
+      - name: Check distinct British voices, human routines and seated passengers
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/character_quality.gd 2>&1 | tee /tmp/character-quality.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/character-quality.log; then exit 1; fi
+          grep -q 'CHARACTER_QUALITY_OK' /tmp/character-quality.log
       - name: Export browser game
         shell: bash
         run: |
@@ -159,6 +166,8 @@ jobs:
           cp transport/recitations/NOTICE.md build/web/RECITATION-CREDITS.md
           cp actors/voices/ALBA-MODEL-CARD.md build/web/ALBA-MODEL-CARD.md
           cp actors/voices/JOE-MODEL-CARD.md build/web/JOE-MODEL-CARD.md
+          cp actors/voices/NORTHERN-ENGLISH-MALE-MODEL-CARD.md build/web/NORTHERN-ENGLISH-MALE-MODEL-CARD.md
+          cp actors/voices/CORI-MODEL-CARD.md build/web/CORI-MODEL-CARD.md
           touch build/web/.nojekyll
       - name: Save downloadable browser build
         uses: actions/upload-artifact@v4

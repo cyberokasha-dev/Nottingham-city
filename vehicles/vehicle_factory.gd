@@ -7,6 +7,8 @@ static func make(kind: String) -> Node3D:
 		truck.name = "TowTruck" if kind == "tow" else "TrailerTruck"
 		var truck_body: VehicleBody3D = truck.get_node("Body")
 		truck_body.display_name = "Tow truck" if kind == "tow" else "Articulated truck"
+		truck_body.set_meta("driver_seat",Vector3(0.35,0.06,0.5))
+		truck_body.set_meta("driver_scale",0.82)
 		_refine_truck(truck_body)
 		return truck
 	var car: Node3D = preload("res://vehicles/car_base.tscn").instantiate()
@@ -40,6 +42,8 @@ static func make(kind: String) -> Node3D:
 	else:
 		body.display_name = {"sports": "Sports sedan", "suv": "Luxury SUV", "van": "City van"}[kind]
 		_build_kenney(body, kind)
+	body.set_meta("driver_seat",{"cybercab":Vector3(0.4,-0.1,-0.35),"sports":Vector3(0.35,-0.4,-0.15),"suv":Vector3(0.35,-0.15,-0.15),"van":Vector3(0.35,0.05,0.15)}[kind])
+	body.set_meta("driver_scale",{"cybercab":0.85,"sports":0.75,"suv":0.80,"van":0.82}[kind])
 	return car
 
 static func _material(color: Color, metal := 0.0, roughness := 0.5, glow := false) -> StandardMaterial3D:

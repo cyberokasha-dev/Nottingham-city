@@ -159,63 +159,80 @@ func reserve_departure(number: String) -> float:
 
 func exchange(bus: Node3D, stop: Dictionary) -> void:
 	for record in bus.manifest.duplicate():
-		if int(record.destination)==bus.stop_index or bus.stop_index==0:
-			var person: Node3D = record.person
-			person.reparent(self)
-			person.global_position = bus.entrance()
-			person.scale = Vector3.ONE
-			person.set_seated(false)
-			person.walking = true
-			person.set_meta("ready_at",elapsed+45)
-			var walk := create_tween()
-			walk.tween_property(person,"global_position",stop.pavement+stop.direction*float(stop.waiting.size())*0.8,3.0)
-			walk.tween_callback(func(): person.walking=false)
-			stop.waiting.append(person)
-			bus.manifest.erase(record)
-			person.show()
-	bus.passengers = bus.manifest.size()
+		if int(record.destination)!=bus.stop_index and bus.stop_index!=0: continue
+		var person: Node3D=record.person
+		person.show()
+		person.walking=false
+		person.set_meta("ready_at",elapsed+45)
+		var exit_path: Array[Vector3]=bus.boarding_path(int(record.seat))
+		exit_path.reverse()
+		# Exit at the middle door so arriving passengers do not cross the front queue.
+		exit_path.resize(exit_path.size()-3)
+		exit_path.append(Vector3(0,0.6,-1.2))
+		exit_path.append(Vector3(1.7,0.05,-1.2))
+		var destination: Vector3=stop.pavement+stop.direction*float(stop.waiting.size())*0.8
+		_transfer(bus,person,exit_path,destination,false)
+		stop.waiting.append(person)
+		bus.manifest.erase(record)
+	bus.passengers=bus.manifest.size()
 	bus.rebuild_cabin()
 
 func board_next(bus: Node3D) -> bool:
-	if economy==null or bus.stop_index<0 or bus.manifest.size()>=19 or bus.dwell_elapsed>=58:
-		return false
-	var stop: Dictionary = bus.route.stops[bus.stop_index]
+	if economy==null or bus.stop_index<0 or bus.manifest.size()>=19 or bus.dwell_elapsed>=43: return false
+	var stop: Dictionary=bus.route.stops[bus.stop_index]
 	for person in stop.waiting.duplicate():
-		if not is_instance_valid(person) or not person.visible or elapsed<float(person.get_meta("ready_at",0)):
-			continue
-		if economy!=null:
-			if economy.key_for(person)=="":
-				economy.register(person,str(person.get_meta("commuter_id")),15000)
-			if not economy.charge(person,200,"Bus "+bus.route.number+" fare"):
-				person.set_meta("ready_at",elapsed+60)
-				continue
-		stop.waiting.erase(person)
-		person.walking = true
-		var seat_index: int = bus.free_seat()
+		if not is_instance_valid(person) or not person.visible or person.walking or elapsed<float(person.get_meta("ready_at",0)): continue
+		var seat_index: int=bus.free_seat()
 		if seat_index<0: return false
+		if economy.key_for(person)=="": economy.register(person,str(person.get_meta("commuter_id")),15000)
+		if not economy.charge(person,200,"Bus "+bus.route.number+" fare"):
+			person.set_meta("ready_at",elapsed+60)
+			continue
+		stop.waiting.erase(person)
+		person.walking=true
 		person.set_meta("bus_seat",seat_index)
-		var walk := create_tween()
-		walk.tween_property(person,"global_position",bus.entrance(),1.0)
-		walk.tween_callback(func():
-			if is_instance_valid(person) and is_instance_valid(bus):
-				person.reparent(bus)
-				var seat: int = int(person.get_meta("bus_seat",0))
-				person.position = bus.npc_seat(seat)
-				person.rotation.y = 0
-				person.scale = Vector3(0.92,0.94,0.92)
-				person.set_seated(true)
-				for leg in person.legs:
-					leg.rotation.x = -PI/2
-				for arm in person.arms:
-					arm.rotation.x = -0.35
-				person.walking = false
-				bus.rebuild_cabin())
-		var ride_stops := mini(bus.route.stops.size()-1,3+int(person.variant)%5)
+		var ride_stops:=mini(bus.route.stops.size()-1,3+int(person.variant)%5)
 		bus.manifest.append({"person":person,"seat":seat_index,"destination":(bus.stop_index+ride_stops)%bus.route.stops.size()})
-		bus.passengers = bus.manifest.size()
-		bus.dwell = minf(60.0-bus.dwell_elapsed,maxf(bus.dwell,2.0))
+		bus.passengers=bus.manifest.size()
+		_transfer(bus,person,bus.boarding_path(seat_index),Vector3.ZERO,true)
+		bus.dwell=minf(60.0-bus.dwell_elapsed,maxf(bus.dwell,2.0))
 		return true
 	return false
+
+func _transfer(bus: Node3D, person: Node3D, points: Array[Vector3], pavement: Vector3, entering: bool) -> void:
+	bus.passenger_transfers+=1
+	var walk:=create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	walk.tween_interval(0.7) # Doors open before anyone crosses the threshold.
+	var previous: Vector3=bus.to_local(person.global_position)
+	for index in range(points.size()):
+		var point: Vector3=points[index]
+		if entering and index==points.size()-1:
+			walk.tween_callback(func(): person.walking=false; person.set_seated(true))
+		if not entering and index==2:
+			walk.tween_callback(func(): person.set_seated(false); person.walking=true)
+		var duration: float=bus.transfer_duration(previous,point)
+		var direction: Vector3=point-previous
+		if direction.length_squared()>0.01:
+			var facing: float=bus.rotation.y+atan2(direction.x,direction.z)
+			walk.tween_property(person,"rotation:y",facing,minf(0.15,duration))
+		walk.tween_property(person,"global_position",bus.to_global(point),duration)
+		previous=point
+	if not entering: walk.tween_property(person,"global_position",pavement,previous.distance_to(bus.to_local(pavement))/2.4)
+	walk.tween_callback(func():
+		if not is_instance_valid(person) or not is_instance_valid(bus): return
+		if entering:
+			person.reparent(bus)
+			person.position=bus.npc_seat(int(person.get_meta("bus_seat")))
+			person.rotation=Vector3.ZERO
+			person.scale=Vector3(0.92,0.94,0.92)
+			person.walking=false
+			person.set_seated(true)
+		else:
+			person.reparent(self)
+			person.scale=Vector3.ONE
+			person.walking=false
+		bus.passenger_transfers=maxi(0,bus.passenger_transfers-1)
+		bus.rebuild_cabin())
 
 func seed_services() -> void:
 	if seeded or economy==null: return

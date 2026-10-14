@@ -1,5 +1,6 @@
 """Render original dialogue with Piper and combine each voice into one Ogg bank.
-Usage: python tools/prepare_voices.py /path/to/piper /path/to/model-directory
+Usage: python tools/prepare_voices.py /path/to/piper /path/to/model-directory [bank ...]
+Current character banks: northern_english_male cori. Models use <bank>.onnx/json names.
 Requires ffmpeg. Model cards and provenance are in actors/voices/.
 """
 import json
@@ -17,12 +18,13 @@ LINES.update(json.loads((ROOT/'actors/voices/dialogue-source.json').read_text())
 
 with tempfile.TemporaryDirectory() as task_dir:
     temp = pathlib.Path(task_dir)
-    catalog = {}
-    for voice in ['alba', 'joe']:
+    existing = (ROOT/'actors/voices/catalog.gd').read_text().split('const BANKS := ',1)[1]
+    catalog = json.loads(existing)
+    for voice in (sys.argv[3:] or ['alba', 'joe']):
         requests = [{'text': text, 'output_file': str(temp / (voice+'-'+key+'.wav'))}
                     for key, text in LINES.items()]
         subprocess.run([sys.argv[1], '--model', str(pathlib.Path(sys.argv[2]) / (voice+'.onnx')),
-                        '--json-input'], input='\n'.join(json.dumps(r) for r in requests)+'\n',
+                        '--length_scale','0.92','--json-input'], input='\n'.join(json.dumps(r) for r in requests)+'\n',
                         text=True, check=True, timeout=360)
         combined = temp / (voice+'.wav')
         frames = bytearray()

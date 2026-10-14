@@ -28,12 +28,14 @@ func _ready() -> void:
 		resident.name = names[i]
 		resident.person_name = names[i]
 		resident.variant = i+1
-		resident.female = i%2==0
+		resident.female = names[i] in ["Safiya","Sara","Fatima","Nia","Lena","Amina","Grace","Amira","Mariam","Rose","Ruby","Hana","Eva","Layla","Freya"]
 		resident.manager = self
 		resident.home = city.houses[(i*5)%city.houses.size()]
 		resident.position = spawn_point(i)
 		add_child(resident)
 		residents.append(resident)
+	# Staggered daily activities keep some residents occupied instead of all walking.
+	for i in range(2,14): residents[i].start_activity(["phone","stretch","look","work","rest"][i%5])
 	# Two neighbours visibly chatting beside the starting courtyard.
 	residents[0].begin_conversation(residents[1])
 

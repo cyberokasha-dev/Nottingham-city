@@ -9,6 +9,9 @@ var walking := false:
 	set(value):
 		walking=value
 		set_process(value)
+		if not value and not seated:
+			for leg in legs: leg.rotation.x=0
+			for arm in arms: arm.rotation.x=0
 var knees: Array[Node3D] = []
 var seated := false
 static var palette: Dictionary = {}
@@ -24,10 +27,19 @@ func _ready() -> void:
 	var hair := paint(Color("262019"))
 	var torso := Node3D.new()
 	add_child(torso)
-	G.sphere(torso,Vector3(0,1.16,0),Vector3(0.47,0.65,0.29),shirt)
+	G.sphere(torso,Vector3(0,1.16,0),Vector3(0.42+float(variant%4)*0.025,0.65,0.29),shirt)
 	G.tube(torso,Vector3(0,1.38,0),Vector3(0,1.52,0),0.075,skin)
 	G.sphere(torso,Vector3(0,1.65,0),Vector3(0.25,0.32,0.25),skin)
 	G.sphere(torso,Vector3(0,1.76,-0.015),Vector3(0.265,0.16,0.25),hair)
+	# Readable faces and different hair silhouettes remain in the same material batches.
+	var eyes := paint(Color("e8ded0"))
+	for side in [-1.0,1.0]:
+		G.sphere(torso,Vector3(side*0.052,1.67,0.111),Vector3(0.05,0.027,0.016),eyes)
+		G.sphere(torso,Vector3(side*0.052,1.67,0.122),Vector3(0.021,0.024,0.011),hair)
+		G.sphere(torso,Vector3(side*0.127,1.65,0),Vector3(0.04,0.075,0.04),skin)
+	G.sphere(torso,Vector3(0,1.63,0.128),Vector3(0.04,0.055,0.048),skin)
+	if variant%3==0: G.sphere(torso,Vector3(0,1.73,-0.12),Vector3(0.13,0.13,0.13),hair)
+	if variant%4==1: G.sphere(torso,Vector3(0,1.79,0),Vector3(0.26,0.10,0.25),shirt)
 	G.merge(torso)
 	for side in [-1.0,1.0]:
 		var leg := Node3D.new()
@@ -68,4 +80,5 @@ func set_seated(value: bool) -> void:
 	for i in range(legs.size()):
 		legs[i].rotation.x = -PI/2 if value else 0.0
 		knees[i].rotation.x = PI/2 if value else 0.0
+		knees[i].scale.y = 0.85 if value else 1.0
 	for arm in arms: arm.rotation.x = -0.35 if value else 0.0

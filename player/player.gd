@@ -79,7 +79,8 @@ func _ready() -> void:
 	visual.setup(profile.variant,profile.female,profile.model)
 	dialogue = preload("res://actors/speech.gd").new()
 	dialogue.actor = self
-	dialogue.voice_set = "alba"
+	dialogue.voice_set = profile.get("voice","cori" if profile.female else "northern_english_male")
+	dialogue.ambient_enabled = false
 	add_child(dialogue)
 	add_child(preload("res://simulation/service_audio.gd").new())
 	animator = visual.animator
@@ -125,10 +126,8 @@ func _ready() -> void:
 		home_position = global_position
 
 func _play_clip(clip: String, blend := 0.16) -> void:
-	if current_clip != clip or not animator.is_playing():
-		current_clip = clip
-		animator.speed_scale = 1.0
-		animator.play(clip, blend)
+	current_clip=clip
+	visual.play(clip,blend)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not controlled or (is_instance_valid(party) and party.wheel.visible):
@@ -525,7 +524,9 @@ func _begin_enter(door_position: Vector3) -> void:
 	var sit := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	sit.tween_property(self, "global_position", target, 0.55)
 	await sit.finished
-	visual.hide()
+	visual.mount(vehicle,vehicle.get_meta("driver_seat",Vector3(0.35,-0.15,0)),PI,true)
+	visual.model.scale=visual.base_scale*float(vehicle.get_meta("driver_scale",0.8))
+	visual.show()
 	_play_clip("seated")
 	await _blend_camera(vehicle.get_node("CameraBase/Camera3D"))
 	driving = true
@@ -550,6 +551,7 @@ func try_exit() -> bool:
 	return true
 
 func _begin_exit(feet: Vector3) -> void:
+	visual.dismount(self)
 	vehicle.park()
 	global_position = feet
 	velocity = Vector3.ZERO
@@ -661,8 +663,7 @@ func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
 		return
 	var toward: Vector3 = (attacker.global_position-global_position).normalized()
 	if guarding and (-visual.global_basis.z).dot(toward) > 0.35:
-		_notify("Blocked")
-		dialogue.speak("blocked",true)
+		get_node("ServiceAudio").effect("punch")
 		return
 	health = maxi(0,health-damage)
 	visual.impact()
@@ -671,7 +672,7 @@ func receive_hit(attacker: CharacterBody3D, damage: int) -> void:
 	hit_push = -toward * 2.8
 	hurt_time = 0.28
 	guarding = false
-	dialogue.speak("hurt",true)
+	get_node("ServiceAudio").effect("punch")
 	strike_pending = false
 	_play_clip("hit",0.06)
 	action_time = 0.5
