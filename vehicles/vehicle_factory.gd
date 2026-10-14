@@ -124,8 +124,8 @@ static func _setup_wheel(wheel: VehicleWheel3D, pos: Vector3, radius: float, fro
 	wheel.suspension_travel = 0.20
 	wheel.suspension_stiffness = 45.0
 	wheel.suspension_max_force = 12000.0
-	wheel.damping_compression = 4.5
-	wheel.damping_relaxation = 5.0
+	wheel.damping_compression = 5.0
+	wheel.damping_relaxation = 5.5
 	for child in wheel.get_children():
 		child.free()
 
@@ -135,11 +135,8 @@ static func _build_cybercab(body: VehicleBody3D) -> void:
 	var glass := _material(Color("243445"), 0.65, 0.15)
 	var light := _material(Color("d2f4ff"), 0.0, 0.2, true)
 	var red := _material(Color("ff3838"), 0.0, 0.3, true)
-	_profile(body, [[-2.22,0.75,0.04,0.39,0.46], [-1.70,0.93,0.01,0.51,0.63],
-		[-0.80,0.98,0.01,0.52,0.63], [0.75,0.98,0.01,0.52,0.62],
-		[1.55,0.92,0.05,0.44,0.52], [2.20,0.74,0.09,0.28,0.34]], gold)
-	_profile(body, [[-1.39,0.71,0.58,0.60,0.62], [-0.53,0.76,0.59,1.06,1.12],
-		[0.18,0.75,0.58,1.03,1.09], [1.03,0.72,0.57,0.59,0.61]], glass)
+	preload("res://vehicles/road_car.gd").loft(body,[[-2.22,0.75,0.04,0.46],[-1.70,0.93,0.01,0.63],[-0.8,0.98,0.01,0.63],[0.75,0.98,0.01,0.62],[1.55,0.92,0.05,0.52],[2.2,0.74,0.09,0.34]],gold)
+	preload("res://vehicles/road_car.gd").loft(body,[[-1.39,0.71,0.58,0.62],[-0.53,0.76,0.59,1.12],[0.18,0.75,0.58,1.09],[1.03,0.72,0.57,0.61]],glass)
 	_box(body, Vector3(0,0.02,0), Vector3(1.86,0.10,3.95), trim)
 	_box(body, Vector3(0,0.26,2.21), Vector3(1.40,0.055,0.045), light)
 	_box(body, Vector3(0,0.39,-2.23), Vector3(1.44,0.06,0.045), red)
@@ -174,40 +171,21 @@ static func _build_cybercab(body: VehicleBody3D) -> void:
 	body.add_child(headlamp)
 
 static func _build_kenney(body: VehicleBody3D, kind: String) -> void:
-	var path: String = {"sports":"res://vehicles/models/sedan-sports.glb", "suv":"res://vehicles/models/suv-luxury.glb", "van":"res://vehicles/models/van.glb"}[kind]
-	var model: Node3D = load(path).instantiate()
-	var scale_factor := 1.55
-	model.scale = Vector3.ONE * scale_factor
-	model.position.y = -0.465
-	body.add_child(model)
-	var names := ["wheel-front-left","wheel-back-left","wheel-front-right","wheel-back-right"]
+	var color: Color = {"sports":Color("a82e42"),"suv":Color("2e587c"),"van":Color("dce2e1")}[kind]
+	var visual := preload("res://vehicles/road_car.gd").make(kind,color)
+	var pivots: Array = visual.get_meta("wheels")
 	for i in range(4):
-		var source: MeshInstance3D = model.get_node(names[i])
-		var origin: Vector3 = source.position * scale_factor + model.position
-		var side := 1.0 if i < 2 else -1.0
-		var position := Vector3(side*0.72,origin.y,origin.z)
+		var source: Node3D = pivots[i]
 		var wheel: VehicleWheel3D = body.get_node("Wheel"+str(i+1))
-		_setup_wheel(wheel, position, 0.465, i % 2 == 0)
-		source.owner = null
-		model.remove_child(source)
+		_setup_wheel(wheel,source.position-Vector3(0,0.65,0),0.37,source.position.z>0)
+		visual.remove_child(source)
 		wheel.add_child(source)
-		source.position = origin-position
-		source.scale = Vector3.ONE * scale_factor
-	var lamp := _material(Color("d5edff"),0,0.25,true)
-	var tail := _material(Color("d72f3f"),0,0.3,true)
-	for side in [-1.0,1.0]:
-		_box(body,Vector3(side*0.61,0.14,1.64),Vector3(0.29,0.10,0.035),lamp)
-		_box(body,Vector3(side*0.6,0.17,-1.70),Vector3(0.22,0.13,0.035),tail)
-	_box(body,Vector3(0,0.04,1.65),Vector3(0.7,0.11,0.035),_material(Color("26313b")))
-	if kind == "suv":
-		body.get_node("CollisionShape3D").shape.size.y = 1.4
-		body.get_node("CollisionShape3D").position.y = 0.56
-		body.mass = 1200.0
-		body.engine_force_value = 4500.0
-	if kind == "van":
-		body.get_node("CollisionShape3D").shape.size.y = 1.65
-		body.get_node("CollisionShape3D").position.y = 0.66
-		body.mass = 1400.0
+		source.position = Vector3.ZERO
+	visual.position.y = -0.65
+	body.add_child(visual)
+	if kind=="suv" or kind=="van":
+		body.get_node("CollisionShape3D").shape.size.y = 1.4 if kind=="suv" else 1.7
+		body.mass = 1200.0 if kind=="suv" else 1400.0
 		body.engine_force_value = 4500.0
 
 static func _refine_truck(body: VehicleBody3D) -> void:
@@ -222,6 +200,8 @@ static func _refine_truck(body: VehicleBody3D) -> void:
 
 # Reuse the actual fleet geometry without adding duplicate physics, cameras or audio.
 static func traffic_visual(kind: String, color: Color) -> Node3D:
+	if kind!="cybercab":
+		return preload("res://vehicles/road_car.gd").make(kind,color)
 	var rig := make(kind)
 	var body: VehicleBody3D = rig.get_node("Body")
 	var visual := Node3D.new()
@@ -241,6 +221,7 @@ static func traffic_visual(kind: String, color: Color) -> Node3D:
 	# Physical car bodies sit above wheel contact, rather than at asphalt level.
 	for child in visual.get_children():
 		child.position.y += 0.45 if kind == "cybercab" else 0.9
+	preload("res://transport/geometry.gd").merge(visual)
 	rig.free()
 	return visual
 

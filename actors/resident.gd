@@ -1,6 +1,7 @@
 extends CharacterBody3D
 ## Autonomous residents share the player's rig, furniture slots and melee rules.
 var person_name := "Resident"
+var riding_service: Node3D
 var variant := 1
 var female := false
 var manager: Node3D
@@ -115,6 +116,24 @@ func begin_conversation(friend: CharacterBody3D) -> void:
 	friend.talk_to(self,3.4)
 
 func _physics_process(delta: float) -> void:
+	if is_instance_valid(riding_service):
+		global_position = riding_service.seat_position(self)
+		return
+	if get_meta("cab_waiting",false) and is_instance_valid(manager.get_parent().get_parent().cabs):
+		var cabs: Node3D = manager.get_parent().get_parent().cabs
+		var key: String = cabs.economy.key_for(self)
+		if cabs.bookings.has(key) and cabs.bookings[key].has("pickup_curb"):
+			var booking: Dictionary = cabs.bookings[key]
+			var target: Vector3 = booking.pickup_wait
+			if booking.state=="waiting":
+				target = cabs.cars[int(booking.car)].node.to_global(Vector3(1.7,0,0))
+			var direction: Vector3 = target-global_position
+			if direction.length()>1.0:
+				_move(direction.normalized(),delta,2.0)
+			else:
+				velocity = Vector3.ZERO
+				visual.play("idle")
+			return
 	speech_time = maxf(0,speech_time-delta)
 	if speech_time <= 0:
 		bubble.text = person_name if global_position.distance_to(manager.player.global_position) < 8 else ""

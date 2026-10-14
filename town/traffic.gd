@@ -10,6 +10,10 @@ var signals: Array[Dictionary] = []
 var lamp_materials: Array[StandardMaterial3D] = []
 var last_lamp_phase := -1
 var transport: Node3D
+var step_accumulator := 0.0
+var pedestrians: Array[Node] = []
+var autonomous_nodes: Array[Node3D] = []
+var crowd_refresh := 0.0
 
 func _ready() -> void:
 	# Share the six lamp materials instead of allocating 180 materials every frame.
@@ -33,6 +37,7 @@ func _ready() -> void:
 					mesh.top_radius = 0.09
 					mesh.bottom_radius = 0.09
 					mesh.height = 3.8
+					mesh.radial_segments = 8
 					pole.mesh = mesh
 					pole.position.y = 1.9
 					head.add_child(pole)
@@ -49,6 +54,8 @@ func _ready() -> void:
 						var sphere := SphereMesh.new()
 						sphere.radius = 0.16
 						sphere.height = 0.32
+						sphere.radial_segments = 8
+						sphere.rings = 4
 						lamp.mesh = sphere
 						lamp.position = Vector3(0,3.78-i*0.38,0.25)
 						head.add_child(lamp)
@@ -73,13 +80,24 @@ func _ready() -> void:
 		collision_body.add_child(collider)
 		car.add_child(collision_body)
 		add_child(car)
-		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"speed":7.0+float(i%5)*1.4})
+		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"kind":kind,"speed":7.0+float(i%5)*1.4})
 	_process(0.0)
 
 func _process(delta: float) -> void:
+	step_accumulator += delta
+	if delta>0 and step_accumulator<0.05:
+		return
+	delta = step_accumulator
+	step_accumulator = 0.0
+	crowd_refresh -= delta
+	if crowd_refresh<=0:
+		pedestrians = get_tree().get_nodes_in_group("people")
+		crowd_refresh = 0.5
 	clock = fposmod(clock+delta,CYCLE)
 	_update_lamps()
 	for item in cars:
+		if item.get("taken",false):
+			continue
 		var vertical: bool = item.vertical
 		var direction: float = item.direction
 		var distance: float = item.distance
@@ -95,7 +113,7 @@ func _process(delta: float) -> void:
 		travel = minf(travel,_following_gap(item))
 		# Clamp at the stop line even on a long frame. Cars already inside clear it.
 		if not green and crossing>=11.99:
-			travel = minf(travel,crossing-12.0)
+			travel = minf(travel,maxf(0,crossing-12.0))
 		distance += direction*travel
 		if distance>157.0:
 			distance = -157.0
@@ -103,7 +121,7 @@ func _process(delta: float) -> void:
 			distance = 157.0
 		item.distance = distance
 		for wheel in item.node.get_meta("wheels",[]):
-			wheel.rotation.x += travel/0.42
+			wheel.rotation.x += travel/0.42*direction
 		var node: Node3D = item.node
 		if vertical:
 			node.position = Vector3(ROAD_X[item.lane]+item.offset,LEVEL,distance)
@@ -135,25 +153,33 @@ func _update_lamps() -> void:
 func _following_gap(item: Dictionary) -> float:
 	var gap := 10000.0
 	for other in cars:
-		if other==item or other.vertical!=item.vertical or other.lane!=item.lane or other.direction!=item.direction:
+		if other.get("taken",false) or other==item or other.vertical!=item.vertical or other.lane!=item.lane or other.direction!=item.direction:
 			continue
 		var ahead: float = fposmod((other.distance-item.distance)*item.direction,314.0)
 		gap = minf(gap,maxf(0,ahead-6.0))
 	if is_instance_valid(transport):
 		var direction := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
 		for bus in transport.buses:
+			if not bus.visible:
+				continue
 			var offset: Vector3 = bus.global_position-item.node.global_position
 			var ahead := offset.dot(direction)
 			var lateral := (offset-direction*ahead).length()
 			if ahead>0 and lateral<2.5 and bus.global_basis.z.dot(direction)>0.8:
 				gap = minf(gap,maxf(0,ahead-9.0))
+	for cab in autonomous_nodes:
+		var heading := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
+		var offset: Vector3 = cab.global_position-item.node.global_position
+		var ahead := offset.dot(heading)
+		if ahead>0 and (offset-heading*ahead).length()<2.5 and cab.global_basis.z.dot(heading)>0.7:
+			gap = minf(gap,maxf(0,ahead-6.0))
 	var heading := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
 	gap = minf(gap,_pedestrian_gap(item.node.global_position,heading,4.5))
 	return gap
 
 # Shared traffic rule query for routed buses. Signal approaches and lane queues
 # are checked before movement; a vehicle inside the junction is allowed to clear.
-func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_length: float, ignore: Node3D) -> float:
+func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_length: float, ignore: Node3D, ignored_person: Node3D = null) -> float:
 	var travel := requested
 	var vertical := absf(direction.z)>0.95
 	var horizontal := absf(direction.x)>0.95
@@ -166,11 +192,13 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 				travel = minf(travel,maxf(0,ahead-12.0))
 	var obstacles: Array[Node3D] = []
 	for item in cars:
-		obstacles.append(item.node)
+		if not item.get("taken",false):
+			obstacles.append(item.node)
+	obstacles.append_array(autonomous_nodes)
 	if is_instance_valid(transport):
 		obstacles.append_array(transport.buses)
 	for other in obstacles:
-		if other == ignore:
+		if other == ignore or not other.visible:
 			continue
 		var offset: Vector3 = other.global_position-pos
 		var ahead := offset.dot(direction)
@@ -178,13 +206,15 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 		if ahead>0 and lateral<2.6 and other.global_basis.z.dot(direction)>0.7:
 			var other_length := 5.2 if other.is_in_group("city_buses") else 2.3
 			travel = minf(travel,maxf(0,ahead-half_length-other_length-1.8))
-	return minf(travel,_pedestrian_gap(pos,direction,half_length+1.2))
+	return minf(travel,_pedestrian_gap(pos,direction,half_length+1.2,ignored_person))
 
-func _pedestrian_gap(pos: Vector3, direction: Vector3, clearance: float) -> float:
+func _pedestrian_gap(pos: Vector3, direction: Vector3, clearance: float, ignored_person: Node3D = null) -> float:
 	var gap := 10000.0
 	if not is_inside_tree():
 		return gap
-	for person in get_tree().get_nodes_in_group("people"):
+	for person in pedestrians:
+		if not is_instance_valid(person) or person==ignored_person:
+			continue
 		if person.driving or person.resting!="" or not person.visible:
 			continue
 		if person.get("riding_bus")!=null:
@@ -194,3 +224,29 @@ func _pedestrian_gap(pos: Vector3, direction: Vector3, clearance: float) -> floa
 		if ahead>0 and (offset-direction*ahead).length()<1.6:
 			gap = minf(gap,maxf(0,ahead-clearance))
 	return gap
+
+func nearest_car(person: Node3D) -> Dictionary:
+	for item in cars:
+		if not item.get("taken",false) and person.global_position.distance_to(item.node.global_position)<4.0:
+			return item
+	return {}
+
+func claim_car(person: CharacterBody3D) -> bool:
+	var item := nearest_car(person)
+	if item.is_empty():
+		return false
+	item.taken = true
+	var pose: Transform3D = item.node.global_transform
+	item.node.hide()
+	for collider in item.node.find_children("*","CollisionShape3D",true,false):
+		collider.set_deferred("disabled",true)
+	var rig := preload("res://vehicles/vehicle_factory.gd").make(item.kind)
+	rig.transform = pose
+	rig.position.y += 0.65
+	var game: Node3D = person.party.game
+	game.town.add_child(rig)
+	var body: VehicleBody3D = rig.get_node("Body")
+	body.park()
+	game.fleet.append(body)
+	await get_tree().physics_frame
+	return person.try_enter()

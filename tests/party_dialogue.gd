@@ -1,9 +1,14 @@
 extends SceneTree
 func _initialize() -> void:
+    OS.set_environment("NOTTINGHAM_TEST","1")
     call_deferred("check_party")
 func check_party() -> void:
     var game = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
     root.add_child(game)
+    game.economy.enabled = false
+    game.economy.enforce_tenancy = false
+    game.cabs.npc_clock = -100000
+    game.city.transport.economy = null
     for i in range(150):
         await physics_frame
     var original = game.player

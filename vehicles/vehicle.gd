@@ -12,6 +12,7 @@ const BRAKE_STRENGTH = 2.0
 var previous_speed := linear_velocity.length()
 var _steer_target := 0.0
 var driver_active := false
+var upright_time := 0.0
 
 @onready var desired_engine_pitch: float = $EngineSound.pitch_scale
 
@@ -26,6 +27,18 @@ func _physics_process(delta: float):
 		steering = move_toward(steering, 0.0, STEER_SPEED * delta)
 		previous_speed = linear_velocity.length()
 		return
+	# Limit suspension/impact spikes and recover an overturned stationary vehicle.
+	if linear_velocity.length()>28.0:
+		linear_velocity = linear_velocity.limit_length(28.0)
+	if angular_velocity.length()>2.4:
+		angular_velocity = angular_velocity.limit_length(2.4)
+	upright_time = upright_time+delta if global_basis.y.y<0.3 and linear_velocity.length()<2 else 0.0
+	if upright_time>2.5:
+		global_rotation = Vector3(0,global_rotation.y,0)
+		global_position.y = -4.35
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+		upright_time = 0
 	brake = 0.0
 	var fwd_mps := (linear_velocity * transform.basis).x
 

@@ -8,6 +8,7 @@ const EXIT_SPEED := 1.0
 var vehicle: VehicleBody3D
 var home_position := Vector3.ZERO
 var use_home_position := false
+var riding_service: Node3D
 var riding_bus: Node3D
 var park_activity: Node3D
 var driving := false
@@ -139,6 +140,11 @@ func _physics_process(delta: float) -> void:
 			if look.length() > 0.18:
 				yaw -= look.x * delta * 2.2
 				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
+	if is_instance_valid(riding_service):
+		global_position = riding_service.seat_position(self)
+		pivot.rotation = Vector3(pitch,yaw,0)
+		prompt.text = "AURORA • Autonomous journey\nPlease wait for your booked destination"
+		return
 	if is_instance_valid(riding_bus):
 		global_position = riding_bus.seat_position()
 		pivot.rotation = Vector3(pitch,yaw,0)
@@ -199,6 +205,13 @@ func _physics_process(delta: float) -> void:
 		if folded_arms:
 			dialogue.event("fold")
 		_notify("Arms folded — H to relax" if folded_arms else "Arms relaxed")
+	if is_instance_valid(party.game.phone) and party.game.phone.panel.visible:
+		velocity.x = 0
+		velocity.z = 0
+		if not is_on_floor():
+			velocity.y -= 20*delta
+		move_and_slide()
+		return
 	if strike_pending:
 		strike_delay -= delta
 		if strike_delay <= 0:
@@ -223,6 +236,10 @@ func _physics_process(delta: float) -> void:
 		if driving:
 			try_exit()
 		else:
+			if is_instance_valid(party.game.cabs) and party.game.cabs.is_pickup_near(self):
+				party.game.phone.panel.show()
+				party.game.phone.pin.grab_focus()
+				return
 			var furniture := nearest_furniture()
 			var person := nearest_person()
 			var house := nearest_house()
@@ -239,7 +256,8 @@ func _physics_process(delta: float) -> void:
 			elif is_instance_valid(house):
 				try_house(house)
 			else:
-				try_enter()
+				if not try_enter():
+					party.game.city.traffic.claim_car(self)
 	if transitioning or is_instance_valid(riding_bus) or is_instance_valid(park_activity):
 		return
 	if driving:
@@ -304,7 +322,9 @@ func _physics_process(delta: float) -> void:
 		var furniture := nearest_furniture()
 		var person := nearest_person()
 		var city_target := nearest_city_activity()
-		if is_instance_valid(city_target):
+		if is_instance_valid(party.game.cabs) and party.game.cabs.is_pickup_near(self):
+			prompt.text += "\nE: enter your Aurora boarding code"
+		elif is_instance_valid(city_target):
 			prompt.text += "\nE: " + ("board route "+city_target.route.number if city_target.is_in_group("city_buses") else city_target.nearest(self).title)
 		elif furniture != "":
 			prompt.text += "\n△ E: " + ("sleep in bed" if furniture == "sleep" else "sit on sofa")
@@ -312,6 +332,8 @@ func _physics_process(delta: float) -> void:
 			prompt.text += "\n△ E: talk to " + person.person_name
 		elif is_instance_valid(house):
 			prompt.text += "\n△ E: " + ("leave " if house==active_house else "enter ") + house.address
+		elif not party.game.city.traffic.nearest_car(self).is_empty():
+			prompt.text += "\nE: stop and enter street car"
 		elif is_instance_valid(vehicle):
 			prompt.text += "\nE: enter " + vehicle.display_name
 		else:
@@ -323,6 +345,8 @@ func _physics_process(delta: float) -> void:
 		var stop_text: String = party.game.city.transport.stop_hint(self)
 		if stop_text!="":
 			prompt.text += "\n"+stop_text
+	if is_instance_valid(party.game.economy):
+		prompt.text += "\n"+party.game.economy.pounds(party.game.economy.cash(self))+" • P: Phone / Cab / Housing / Jobs"
 	if message_time > 0:
 		prompt.text += "\n" + message
 
@@ -377,6 +401,9 @@ func nearest_house() -> Node3D:
 	return closest
 
 func try_house(house: Node3D) -> bool:
+	if house!=active_house and is_instance_valid(party.game.economy) and not party.game.economy.can_access(self,house):
+		_notify("Council home "+str(house.house_number)+" — rent it using your phone (P)")
+		return false
 	if dead or transitioning or driving or resting != "" or action_time > 0 or house != nearest_house():
 		return false
 	transitioning = true

@@ -31,3 +31,9 @@ The existing 340-metre game grid is a compressed Nottingham-inspired layout, not
 - At either park, E near the ball kicks it. Goals score and reset the ball. E at a swing, slide or bench uses it; G/E releases the activity. Benches restore health slowly. E at the park lap start begins a timed run through four gold rings.
 
 The game currently supports one player rider per bus; lightweight NPCs visually board/alight and passengers appear upstairs. This is a bus-riding system, not a bus-driving job or a full public transport economy.
+
+## Autonomous services update
+
+Bus drivers have been removed. Passenger queues now use paying commuters that reparent into the bus and alight at assigned stops. Departures reserve 90-second slots at the city terminus with off-service staging; stop dwell is normally 15 seconds and at most 60. Terminal and next-stop text change through the loop. The latest fares (£2 bus; £3 + 3p/game metre Aurora), monthly £400 rent and wages are original game rules, not real NCT fares or Nottingham council policies.
+
+Aurora now uses rounded original body/cabin lofts and service-specific butterfly door panels. The everyday road cars are original rounded lofts with separate wheels, lamps, mirrors, window pillars and door seams, replacing the earlier imported kit appearance in live and claimed cars. All remain original MIT geometry. Simulation and local-save limitations are documented in the README.

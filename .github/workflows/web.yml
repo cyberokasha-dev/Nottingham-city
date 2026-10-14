@@ -54,6 +54,20 @@ jobs:
           godot --headless --path . --script res://tests/city_transport.gd 2>&1 | tee /tmp/city-transport.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-transport.log; then exit 1; fi
           grep -q 'CITY_TRANSPORT_OK' /tmp/city-transport.log
+      - name: Check street cars can be entered without duplicate traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/street_car.gd 2>&1 | tee /tmp/street-car.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/street-car.log; then exit 1; fi
+          grep -q 'STREET_CAR_OK' /tmp/street-car.log
+      - name: Check pounds, council rent, work, fares and Aurora bookings
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/economy_and_services.gd 2>&1 | tee /tmp/economy-services.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/economy-services.log; then exit 1; fi
+          grep -q 'ECONOMY_SERVICES_OK' /tmp/economy-services.log
       - name: Check residents, combat, furniture, city and all six vehicles
         shell: bash
         run: |

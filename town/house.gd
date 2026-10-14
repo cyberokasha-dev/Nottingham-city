@@ -1,6 +1,10 @@
 extends Node3D
 
 var address := "Home"
+var house_number := 0
+var street := ""
+var rental_record := {}
+var rental_sign: Label3D
 var brick_color := Color("b46f4c")
 var roof: Node3D
 var front: Node3D
@@ -67,6 +71,14 @@ func _ready() -> void:
 	number.pixel_size = 0.008
 	number.position = Vector3(0,2.77,7.12)
 	add_child(number)
+	rental_sign = Label3D.new()
+	rental_sign.font_size = 25
+	rental_sign.pixel_size = 0.007
+	rental_sign.position = Vector3(3.3,1.0,7.2)
+	add_child(rental_sign)
+	var geometry = preload("res://transport/geometry.gd")
+	for section in [self,front,roof,door]:
+		geometry.merge(section)
 	# Interiors are instantiated only when needed; every house has its own entrance.
 	for mesh in find_children("*","MeshInstance3D",true,false):
 		mesh.visibility_range_end = 190.0
@@ -178,3 +190,7 @@ func claim_rest(action: String, actor: Node3D) -> bool:
 func release_rest(action: String, actor: Node3D) -> void:
 	if rest_users.get(action) == actor:
 		rest_users.erase(action)
+
+func refresh_sign() -> void:
+	if is_instance_valid(rental_sign):
+		rental_sign.text = "HOUSE "+str(house_number)+"\n"+("TO RENT • £400/month" if str(rental_record.get("tenant",""))=="" else "RENTED • COUNCIL HOME")

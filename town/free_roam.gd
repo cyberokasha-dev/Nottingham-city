@@ -10,6 +10,9 @@ var population: Node3D
 var party: Node
 var city_map: Control
 var conversation: CanvasLayer
+var economy: Node
+var cabs: Node3D
+var phone: CanvasLayer
 
 func _ready() -> void:
 	town = Node3D.new()
@@ -60,6 +63,17 @@ func _ready() -> void:
 	conversation = preload("res://actors/conversation.gd").new()
 	conversation.game = self
 	add_child(conversation)
+	economy = preload("res://simulation/economy.gd").new()
+	economy.game = self
+	add_child(economy)
+	city.transport.economy = economy
+	cabs = preload("res://simulation/cabs.gd").new()
+	cabs.game = self
+	cabs.economy = economy
+	add_child(cabs)
+	phone = preload("res://simulation/phone.gd").new()
+	phone.game = self
+	add_child(phone)
 	_settle_parked_fleet()
 
 func _settle_parked_fleet() -> void:

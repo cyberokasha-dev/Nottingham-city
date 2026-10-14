@@ -74,6 +74,8 @@ static func merge(parent: Node3D) -> void:
 				groups[key] = {"tool":tool,"material":mat}
 			for i in range(child.mesh.get_surface_count()):
 				groups[key].tool.append_from(child.mesh,i,child.transform)
+			for attached in child.get_children():
+				attached.reparent(parent,true)
 			child.free()
 	for group in groups.values():
 		var n := MeshInstance3D.new()

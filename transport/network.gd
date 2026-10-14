@@ -1,6 +1,10 @@
 extends Node3D
 const G = preload("res://transport/geometry.gd")
 var traffic: Node3D
+var economy: Node
+var elapsed := 0.0
+var departures := {}
+var queue_clock := 0.0
 var routes: Array[Dictionary] = []
 var buses: Array[Node3D] = []
 var stops: Array[Dictionary] = []
@@ -111,34 +115,82 @@ func _build_stop(stop: Dictionary, route: Dictionary) -> void:
 	for i in range(2):
 		var person := preload("res://transport/crowd_person.gd").new()
 		person.variant = stops.size()+i
+		person.set_meta("commuter_id","commuter/"+str(stops.size())+"/"+str(i))
 		person.position = stop.pavement+stop.direction*(float(i)-0.5)*0.9
 		person.rotation.y = shelter.rotation.y-PI/2
 		add_child(person)
 		stop.waiting.append(person)
 
+func reserve_departure(number: String) -> float:
+	var departure: float = maxf(elapsed,float(departures.get(number,0)))
+	departures[number] = departure+90.0
+	return departure
+
 func exchange(bus: Node3D, stop: Dictionary) -> void:
-	var alighting := preload("res://transport/crowd_person.gd").new()
-	alighting.variant = bus.services_completed+3
-	add_child(alighting)
-	alighting.global_position = bus.entrance()
-	alighting.walking = true
-	var exit_path := create_tween()
-	exit_path.tween_property(alighting,"global_position",stop.pavement+stop.direction*5,4.0)
-	exit_path.tween_callback(alighting.queue_free)
-	var boarded := 0
-	for person in stop.waiting:
-		if not person.visible:
-			person.position = stop.pavement+stop.direction*float(boarded)
-		person.show()
+	for record in bus.manifest.duplicate():
+		if int(record.destination)==bus.stop_index or bus.stop_index==0:
+			var person: Node3D = record.person
+			person.reparent(self)
+			person.global_position = bus.entrance()
+			person.scale = Vector3.ONE
+			person.walking = true
+			person.set_meta("ready_at",elapsed+45)
+			var walk := create_tween()
+			walk.tween_property(person,"global_position",stop.pavement+stop.direction*float(stop.waiting.size())*0.8,3.0)
+			walk.tween_callback(func(): person.walking=false)
+			stop.waiting.append(person)
+			bus.manifest.erase(record)
+	bus.passengers = bus.manifest.size()
+
+func board_next(bus: Node3D) -> bool:
+	if bus.stop_index<0 or bus.manifest.size()>=20 or bus.dwell_elapsed>=58:
+		return false
+	var stop: Dictionary = bus.route.stops[bus.stop_index]
+	for person in stop.waiting.duplicate():
+		if not is_instance_valid(person) or not person.visible or elapsed<float(person.get_meta("ready_at",0)):
+			continue
+		if economy!=null:
+			if economy.key_for(person)=="":
+				economy.register(person,str(person.get_meta("commuter_id")),15000)
+			if not economy.charge(person,200,"Bus "+bus.route.number+" fare"):
+				person.set_meta("ready_at",elapsed+60)
+				continue
+		stop.waiting.erase(person)
 		person.walking = true
+		person.set_meta("bus_seat",bus.manifest.size())
 		var walk := create_tween()
-		walk.tween_interval(1.1+boarded*0.5)
-		walk.tween_property(person,"global_position",bus.entrance(),2.0)
-		walk.tween_callback(func(): person.hide(); person.walking=false)
-		boarded += 1
-	bus.passengers = clampi(bus.passengers+boarded-1,0,40)
-	for i in range(bus.passenger_visuals.size()):
-		bus.passenger_visuals[i].visible = i<bus.passengers
+		walk.tween_property(person,"global_position",bus.entrance(),1.0)
+		walk.tween_callback(func():
+			if is_instance_valid(person) and is_instance_valid(bus):
+				person.reparent(bus)
+				var seat: int = int(person.get_meta("bus_seat",0))
+				person.position = Vector3(-0.72 if seat%2==0 else 0.72,2.05,-3.3+floorf(seat/2.0)*0.8)
+				person.scale = Vector3(0.85,0.9,0.85)
+				for leg in person.legs:
+					leg.rotation.x = -0.7
+				for arm in person.arms:
+					arm.rotation.x = -0.35
+				person.walking = false)
+		bus.manifest.append({"person":person,"destination":(bus.stop_index+1+int(person.variant)%3)%bus.route.stops.size()})
+		bus.passengers = bus.manifest.size()
+		bus.dwell = minf(60.0-bus.dwell_elapsed,maxf(bus.dwell,2.0))
+		return true
+	return false
+
+func _process(delta: float) -> void:
+	elapsed += delta
+	queue_clock += delta
+	if queue_clock<2:
+		return
+	queue_clock = 0
+	for stop in stops:
+		for i in range(stop.waiting.size()):
+			var person: Node3D = stop.waiting[i]
+			if person.walking:
+				continue
+			var target: Vector3 = stop.pavement+stop.direction*(float(i)*0.85)
+			person.position = target
+			person.rotation.y = atan2(-stop.direction.z,stop.direction.x)
 
 func nearest_bus(person: Node3D) -> Node3D:
 	for bus in buses:

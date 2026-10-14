@@ -43,7 +43,20 @@ func spawn_point(index: int) -> Vector3:
 	return Vector3(city.ROAD_X[(index/2)%city.ROAD_X.size()]+7.7,city.GROUND_Y+0.14,city.ROAD_Z[index%city.ROAD_Z.size()]+7.7)
 
 func next_destination(resident: CharacterBody3D) -> void:
+	var game: Node3D = get_parent().get_parent()
+	if is_instance_valid(game.economy):
+		var account: Dictionary = game.economy.account_for(resident)
+		if game.economy.hour()>=8 and game.economy.hour()<18 and int(account.last_wage)<game.economy.day():
+			var task: Dictionary = game.economy.assignment(resident)
+			if not task.is_empty():
+				resident.wants_home = false
+				var path := streets.get_point_path(streets.get_closest_point(resident.global_position),streets.get_closest_point(task.point))
+				path.append(task.point)
+				resident.go_to(path,task.name)
+				return
 	resident.wants_home = resident.travel_count > 0 and resident.travel_count % 3 == 0
+	if is_instance_valid(game.economy) and int(game.economy.account_for(resident).house)==0:
+		resident.wants_home = false
 	var place: Dictionary = places[(resident.variant+resident.travel_count)%places.size()]
 	var target: Vector3 = resident.home.entrance() if resident.wants_home else place.point
 	var route := streets.get_point_path(streets.get_closest_point(resident.global_position),streets.get_closest_point(target))

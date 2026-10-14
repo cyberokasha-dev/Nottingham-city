@@ -5,6 +5,7 @@ var clip := ""
 var model: Node3D
 var wardrobe: ShaderMaterial
 var flash_time := 0.0
+var lod_clock := 0.0
 
 func setup(variant := 0, female := false, identity := "human") -> void:
 	model = load("res://player/models/muhammad.glb" if identity == "muhammad" else ("res://player/models/human_female.glb" if female else "res://player/models/human.glb")).instantiate()
@@ -45,6 +46,14 @@ func impact() -> void:
 	flash_time = 0.22
 
 func _process(delta: float) -> void:
+	lod_clock += delta
+	if lod_clock>0.5:
+		lod_clock = 0
+		var camera := get_viewport().get_camera_3d()
+		if is_instance_valid(camera) and is_instance_valid(model):
+			var near := global_position.distance_squared_to(camera.global_position)<5625
+			model.visible = near
+			animator.active = near
 	flash_time = maxf(0,flash_time-delta)
 	if is_instance_valid(wardrobe):
 		wardrobe.set_shader_parameter("impact",flash_time/0.22)

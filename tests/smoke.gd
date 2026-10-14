@@ -1,11 +1,16 @@
 extends SceneTree
 
 func _initialize():
+    OS.set_environment("NOTTINGHAM_TEST","1")
     call_deferred("check_world")
 
 func check_world():
     var game = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
     root.add_child(game)
+    game.economy.enabled = false
+    game.economy.enforce_tenancy = false
+    game.cabs.npc_clock = -100000
+    game.city.transport.economy = null
     for i in range(150):
         await physics_frame
     if not check(game.has_node("TruckTown/Player") or is_instance_valid(game.player), "Launch directly into the world"):

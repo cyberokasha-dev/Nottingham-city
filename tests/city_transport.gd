@@ -1,6 +1,7 @@
 extends SceneTree
 var failed := false
 func _initialize() -> void:
+    OS.set_environment("NOTTINGHAM_TEST","1")
     call_deferred("run_checks")
 func check(value: bool, text: String) -> bool:
     if not value:
@@ -11,6 +12,10 @@ func check(value: bool, text: String) -> bool:
 func run_checks() -> void:
     var game = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
     root.add_child(game)
+    game.economy.enabled = false
+    game.economy.enforce_tenancy = false
+    game.cabs.npc_clock = -100000
+    game.city.transport.economy = null
     for i in range(5):
         await physics_frame
     var network = game.city.transport
