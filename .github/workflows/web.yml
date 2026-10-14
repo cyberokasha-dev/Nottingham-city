@@ -3,6 +3,8 @@ name: Build and publish browser game
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -181,6 +183,7 @@ jobs:
           path: build/web
 
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 10
