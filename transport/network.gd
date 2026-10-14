@@ -24,6 +24,18 @@ func _ready() -> void:
 			bus.distance = float(route.length)*i/3.0
 			add_child(bus)
 			buses.append(bus)
+	for bus in buses:
+		for attempt in range(120):
+			var clear := true
+			for other in buses:
+				if other==bus: break
+				if bus.global_position.distance_to(other.global_position)<14: clear=false
+			for item in traffic.cars:
+				if bus.global_position.distance_to(item.node.global_position)<10: clear=false
+			if clear: break
+			bus.distance = fposmod(bus.distance+11.0,float(bus.route.length))
+			bus._update_position()
+		bus.find_next_stop()
 	_build_guide()
 
 func build_route(definition: Dictionary) -> Dictionary:
@@ -53,13 +65,25 @@ func build_route(definition: Dictionary) -> Dictionary:
 	route.lengths = lengths
 	route.length = total
 	route.stops = []
-	# Stops lie halfway along each straight, outside junctions, on the left pavement.
+	# Split every long street at ALL grid crossings. A stop must fit between
+	# junctions, not merely halfway between two distant route waypoints.
+	var stop_sites: Array[Dictionary] = []
 	for i in range(points.size()):
 		var a: Vector2 = points[i]
 		var b: Vector2 = points[(i+1)%points.size()]
 		var direction := (b-a).normalized()
+		var cuts: Array[Vector2] = [a,b]
+		for cross in (traffic.ROAD_Z if absf(direction.y)>0.9 else traffic.ROAD_X):
+			var p := Vector2(a.x,cross) if absf(direction.y)>0.9 else Vector2(cross,a.y)
+			if (p-a).dot(direction)>1 and (b-p).dot(direction)>1: cuts.append(p)
+		cuts.sort_custom(func(x,y): return (x-a).length_squared()<(y-a).length_squared())
+		for j in range(cuts.size()-1):
+			if cuts[j].distance_to(cuts[j+1])<36: continue
+			stop_sites.append({"middle":(cuts[j]+cuts[j+1])*0.5,"direction":direction,"name":definition.stops[i]+(" • local stop "+str(j+1) if j>0 else "")})
+	for site in stop_sites:
+		var direction: Vector2 = site.direction
 		var left := Vector2(direction.y,-direction.x)
-		var middle := (a+b)*0.5
+		var middle: Vector2 = site.middle
 		var road_point := Vector3(middle.x+left.x*2.8,traffic.LEVEL,middle.y+left.y*2.8)
 		var best := INF
 		var along := 0.0
@@ -70,7 +94,7 @@ func build_route(definition: Dictionary) -> Dictionary:
 			if gap < best:
 				best = gap
 				along = lengths[j]+path[j].distance_to(nearest)
-		var stop := {"name":definition.stops[i],"distance":along,"position":road_point,
+		var stop := {"name":site.name,"distance":along,"position":road_point,
 			"pavement":Vector3(middle.x+left.x*7.7,traffic.LEVEL,middle.y+left.y*7.7),"direction":Vector3(direction.x,0,direction.y),"route":route.number,"waiting":[],"label":null}
 		route.stops.append(stop)
 	route.stops.sort_custom(func(a,b): return a.distance<b.distance)
@@ -112,7 +136,7 @@ func _build_stop(stop: Dictionary, route: Dictionary) -> void:
 	var marking := G.label(self,"BUS\nSTOP",stop.position+Vector3(0,0.04,0),42)
 	marking.rotation = Vector3(-PI/2,atan2(stop.direction.x,stop.direction.z),0)
 	marking.modulate = Color("f3d96c")
-	for i in range(2):
+	for i in range(3):
 		var person := preload("res://transport/crowd_person.gd").new()
 		person.variant = stops.size()+i
 		person.set_meta("commuter_id","commuter/"+str(stops.size())+"/"+str(i))
@@ -133,6 +157,7 @@ func exchange(bus: Node3D, stop: Dictionary) -> void:
 			person.reparent(self)
 			person.global_position = bus.entrance()
 			person.scale = Vector3.ONE
+			person.set_seated(false)
 			person.walking = true
 			person.set_meta("ready_at",elapsed+45)
 			var walk := create_tween()
@@ -164,10 +189,14 @@ func board_next(bus: Node3D) -> bool:
 			if is_instance_valid(person) and is_instance_valid(bus):
 				person.reparent(bus)
 				var seat: int = int(person.get_meta("bus_seat",0))
-				person.position = Vector3(-0.72 if seat%2==0 else 0.72,2.05,-3.3+floorf(seat/2.0)*0.8)
-				person.scale = Vector3(0.85,0.9,0.85)
+				var row := int(seat/2.0)%5
+				var deck := 1.95 if seat<10 else 0.0
+				person.position = Vector3(-0.78 if seat%2==0 else 0.78,0.02+deck,-3.4+row*1.3)
+				person.rotation.y = 0
+				person.scale = Vector3(0.92,0.94,0.92)
+				person.set_seated(true)
 				for leg in person.legs:
-					leg.rotation.x = -0.7
+					leg.rotation.x = -PI/2
 				for arm in person.arms:
 					arm.rotation.x = -0.35
 				person.walking = false)

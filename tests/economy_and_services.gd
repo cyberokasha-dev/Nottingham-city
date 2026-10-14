@@ -87,9 +87,9 @@ func run():
     p.global_position=Vector3(42.8,game.city.traffic.LEVEL,30)
     var destination={"name":"Test house","point":Vector3(87.7,game.city.traffic.LEVEL,-25)}
     var trip: Dictionary=cabs.book(p,destination)
-    if not check(not trip.is_empty() and trip.pin.length()==4,"Phone booking assigns a four-digit PIN"): return
+    if not check(not trip.is_empty() and trip.pin.length()==2,"Phone booking assigns a two-digit PIN"): return
     for frame in range(2400):
-        game.city.traffic.clock=fposmod(frame*0.1,24)
+        game.city.traffic.clock=fposmod(frame*0.1,game.city.traffic.CYCLE)
         cabs._physics_process(0.1)
         if trip.state=="waiting": break
     if not check(trip.state=="waiting","Aurora reaches the pickup along roads"): return
@@ -99,7 +99,7 @@ func run():
     if not check(cabs.unlock(p,trip.pin) and int(account.balance)==balance-int(trip.fare),"Correct PIN charges the quoted fare once"): return
     if not check(not cabs.unlock(p,trip.pin),"PIN cannot be reused for duplicate fare"): return
     for frame in range(3600):
-        game.city.traffic.clock=fposmod(frame*0.1,24)
+        game.city.traffic.clock=fposmod(frame*0.1,game.city.traffic.CYCLE)
         cabs._physics_process(0.1)
         if not cabs.bookings.has(e.key_for(p)): break
     if not check(p.riding_service==null and not cabs.bookings.has(e.key_for(p)) and p.visual.visible,"Aurora completes the destination and releases the rider"): return

@@ -16,5 +16,6 @@ static func strike(attacker: CharacterBody3D, direction: Vector3, damage: int) -
 		if not attacker.get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
 			continue
 		target.receive_hit(attacker,damage)
+		if attacker.has_node("ServiceAudio"): attacker.get_node("ServiceAudio").effect("punch")
 		hits += 1
 	return hits

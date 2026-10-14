@@ -67,7 +67,7 @@ func _ready() -> void:
 	visual.setup(variant,female)
 	dialogue = preload("res://actors/speech.gd").new()
 	dialogue.actor = self
-	dialogue.voice_set = "alba" if female else "joe"
+	dialogue.voice_set = "alba"
 	dialogue.variant = variant
 	dialogue.viewer = manager.player
 	add_child(dialogue)

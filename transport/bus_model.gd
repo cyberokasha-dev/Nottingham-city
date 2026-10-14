@@ -13,7 +13,7 @@ func _ready() -> void:
 	var paint := G.material(livery,0.25)
 	var white := G.material(Color("eceee7"),0.15)
 	var rubber := G.material(Color("101820"))
-	var glass := G.material(Color(0.13,0.25,0.31,0.46),0.25)
+	var glass := G.material(Color(0.54,0.71,0.78,0.19),0.25)
 	var steel := G.material(Color("b7c1ca"),0.75)
 	var yellow := G.material(Color("eac64c"),0.2)
 	var seats := G.material(Color("385f81") if not london else Color("8a3448"))

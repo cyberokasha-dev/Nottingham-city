@@ -19,9 +19,11 @@ var upright_time := 0.0
 func _ready() -> void:
 	add_to_group("driveable_vehicles")
 	set_driver_active(false)
+	add_child(preload("res://simulation/service_audio.gd").new())
 
 func _physics_process(delta: float):
-	if not driver_active:
+	get_node("ServiceAudio").set_motion(linear_velocity.length(),"electric" if electric else "engine")
+	if not driver_active or bool(get_meta("controls_blocked",false)):
 		engine_force = 0.0
 		brake = brake_force
 		steering = move_toward(steering, 0.0, STEER_SPEED * delta)
@@ -46,9 +48,10 @@ func _physics_process(delta: float):
 	_steer_target *= STEER_LIMIT
 
 	# Engine sound simulation (not realistic, as this car script has no notion of gear or engine RPM).
-	desired_engine_pitch = 0.05 + linear_velocity.length() / (engine_force_value * 0.5)
+	desired_engine_pitch = clampf(0.8+linear_velocity.length()/13.0,0.8,2.2)
 	# Change pitch smoothly to avoid abrupt change on collision.
 	$EngineSound.pitch_scale = lerpf($EngineSound.pitch_scale, desired_engine_pitch, 0.2)
+	$EngineSound.volume_db = -60
 
 	if abs(linear_velocity.length() - previous_speed) > 1.0:
 		# Sudden velocity change, likely due to a collision. Play an impact sound to give audible feedback,

@@ -67,6 +67,17 @@ func _ground() -> void:
 	add_child(ground)
 
 func _roads() -> void:
+	# Continuous outer distributor connects all street ends around the playable city.
+	for x in [-160.0,160.0]:
+		_stamp(Vector3(x,GROUND_Y+0.011,10),Vector3(12,0.022,332),asphalt)
+		_stamp(Vector3(x+signf(x)*7.5,GROUND_Y+0.025,10),Vector3(3,0.04,332),pavement)
+		for z in range(-143,165,9):
+			if not _near_crossing(z,ROAD_Z): _stamp(Vector3(x,GROUND_Y+0.03,z),Vector3(0.12,0.012,3.5),paint)
+	for z in [-150.0,170.0]:
+		_stamp(Vector3(0,GROUND_Y+0.011,z),Vector3(332,0.022,12),asphalt)
+		_stamp(Vector3(0,GROUND_Y+0.025,z+(-7.5 if z<0 else 7.5)),Vector3(332,0.04,3),pavement)
+		for x in range(-153,160,9):
+			if not _near_crossing(x,ROAD_X): _stamp(Vector3(x,GROUND_Y+0.03,z),Vector3(3.5,0.012,0.12),paint)
 	for x in ROAD_X:
 		_stamp(Vector3(x,GROUND_Y+0.01,10),Vector3(12,0.02,320),asphalt)
 		for z in range(-145,165,9):
@@ -87,11 +98,32 @@ func _roads() -> void:
 			var length: float = ROAD_X[i+1]-ROAD_X[i]-16.0
 			for side in [-1.0,1.0]:
 				_stamp(Vector3((ROAD_X[i]+ROAD_X[i+1])/2,GROUND_Y+0.025,z+side*7.5),Vector3(length,0.04,3),pavement)
+	var curb := _material(Color("c8c9bf"))
+	var yellow := _material(Color("cdbb68"))
+	for x in ROAD_X:
+		for i in range(ROAD_Z.size()-1):
+			var length: float = ROAD_Z[i+1]-ROAD_Z[i]-15
+			for side in [-1.0,1.0]:
+				_stamp(Vector3(x+side*6.04,GROUND_Y+0.045,(ROAD_Z[i]+ROAD_Z[i+1])/2),Vector3(0.16,0.08,length),curb)
+				for line in [5.35,5.62]:
+					_stamp(Vector3(x+side*line,GROUND_Y+0.038,(ROAD_Z[i]+ROAD_Z[i+1])/2),Vector3(0.09,0.012,length),yellow)
+	for z in ROAD_Z:
+		for i in range(ROAD_X.size()-1):
+			var length: float = ROAD_X[i+1]-ROAD_X[i]-15
+			for side in [-1.0,1.0]:
+				_stamp(Vector3((ROAD_X[i]+ROAD_X[i+1])/2,GROUND_Y+0.045,z+side*6.04),Vector3(length,0.08,0.16),curb)
+				for line in [5.35,5.62]:
+					_stamp(Vector3((ROAD_X[i]+ROAD_X[i+1])/2,GROUND_Y+0.038,z+side*line),Vector3(length,0.012,0.09),yellow)
 	for x in ROAD_X:
 		for z in ROAD_Z:
+			for sx in [-1.0,1.0]:
+				for sz in [-1.0,1.0]:
+					_stamp(Vector3(x+sx*7.5,GROUND_Y+0.025,z+sz*7.5),Vector3(3,0.04,3),pavement)
 			# Stop/give-way markings keep intersections visibly distinct from through lanes.
 			for side in [-1.0,1.0]:
-				_stamp(Vector3(x+side*3,GROUND_Y+0.04,z+side*8),Vector3(4,0.012,0.20),paint)
+				_stamp(Vector3(x+side*2.8,GROUND_Y+0.04,z-side*12),Vector3(4.4,0.012,0.20),paint)
+			for side in [-1.0,1.0]:
+				_stamp(Vector3(x-side*12,GROUND_Y+0.04,z-side*2.8),Vector3(0.20,0.012,4.4),paint)
 			if z == 16.0:
 				for i in range(-4,5):
 					_stamp(Vector3(x+i*1.15,GROUND_Y+0.04,z+12),Vector3(0.6,0.012,3.6),paint)
@@ -129,7 +161,7 @@ func _neighbourhoods() -> void:
 					houses.append(house)
 					var door_point: Vector3 = house.entrance()
 					var path_z: float = (door_point.z+(ROAD_Z[iz] if row==0 else ROAD_Z[iz+1]))/2
-					_stamp(Vector3(house.position.x,GROUND_Y+0.03,path_z),Vector3(2.6,0.04,10),pavement)
+					_stamp(Vector3(house.position.x,GROUND_Y+0.03,path_z),Vector3(2.6,0.04,maxf(1,absf(door_point.z-(ROAD_Z[iz] if row==0 else ROAD_Z[iz+1]))-7)),pavement)
 					number += 1
 
 func _park(center: Vector3) -> void:

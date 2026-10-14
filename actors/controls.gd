@@ -74,7 +74,7 @@ func _ready() -> void:
 	rows.add_child(health_bar)
 	var row := HBoxContainer.new()
 	rows.add_child(row)
-	var layout := [["△ E · Use","interact",Color("7ee0b1")],["□ F · Punch","punch",Color("eda5df")],["✕ Space · Jump","jump",Color("8bbaff")],["○ G · Stand / Wake","cancel_action",Color("f59a98")],["L1 Q · Guard","guard",Color.WHITE],["R1 R · Heavy","heavy_punch",Color.WHITE],["H · Fold arms","fold_arms",Color.WHITE]]
+	var layout := [["E · Use","interact",Color("7ee0b1")],["F · Punch","punch",Color("eda5df")],["Space · Jump","jump",Color("8bbaff")],["G · Stand / Wake","cancel_action",Color("f59a98")],["Q · Guard","guard",Color.WHITE],["R · Heavy","heavy_punch",Color.WHITE],["H · Fold arms","fold_arms",Color.WHITE]]
 	for item in layout:
 		var button := Button.new()
 		button.text = item[0]
@@ -89,7 +89,7 @@ func _ready() -> void:
 	character_button.pressed.connect(player.party.toggle_wheel)
 	row.add_child(character_button)
 	var hint := Label.new()
-	hint.text = "WASD / left stick: move   Shift / L3: run   L2 Z: focus   R2 V: punch   right stick / right mouse: look · C: characters · H: fold arms"
+	hint.text = "WASD: move · Shift: run · Z: focus · F: punch · right mouse: look · B: camera · C: characters · H: fold arms"
 	hint.add_theme_font_size_override("font_size",13)
 	rows.add_child(hint)
 	var sound := CheckButton.new()
@@ -100,6 +100,9 @@ func _ready() -> void:
 	sound.toggled.connect(func(enabled):
 		if is_instance_valid(player.party):
 			player.party.voices_enabled = enabled
+			if not enabled and is_instance_valid(player.party.game.cabs):
+				for car in player.party.game.cabs.cars:
+					car.node.get_node("CabDialogue").voice.stop()
 		for person in get_tree().get_nodes_in_group("people"):
 			person.dialogue.muted = not enabled
 			if not enabled:

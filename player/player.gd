@@ -52,6 +52,10 @@ var party: Node
 var hud: CanvasLayer
 var controls: CanvasLayer
 var folded_arms := false
+var camera_mode := 0
+var camera_manual := 0.0
+var follow_yaw := 0.0
+var foot_arm: SpringArm3D
 
 func _ready() -> void:
 	collision_mask = 3
@@ -75,14 +79,16 @@ func _ready() -> void:
 	visual.setup(profile.variant,profile.female,profile.model)
 	dialogue = preload("res://actors/speech.gd").new()
 	dialogue.actor = self
-	dialogue.voice_set = "alba" if profile.female else "joe"
+	dialogue.voice_set = "alba"
 	add_child(dialogue)
+	add_child(preload("res://simulation/service_audio.gd").new())
 	animator = visual.animator
 	_play_clip("idle")
 	pivot = Node3D.new()
 	pivot.position.y = 1.4
 	add_child(pivot)
 	var arm := SpringArm3D.new()
+	foot_arm = arm
 	arm.spring_length = 5.0
 	arm.margin = 0.2
 	arm.add_excluded_object(get_rid())
@@ -128,22 +134,31 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not controlled or (is_instance_valid(party) and party.wheel.visible):
 		return
 	if not driving and not transitioning and event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		camera_manual = 1.6
 		yaw -= event.relative.x * 0.005
 		pitch = clampf(pitch - event.relative.y * 0.005, -1.15, -0.75) if is_instance_valid(active_house) else clampf(pitch - event.relative.y * 0.005, -1.0, 0.3)
 
 func _physics_process(delta: float) -> void:
 	message_time = maxf(0.0, message_time - delta)
+	camera_manual = maxf(0,camera_manual-delta)
+	if controlled and Input.is_action_just_pressed("cycle_camera") and not driving and not _phone_open():
+		cycle_view()
+	if controlled and not transitioning and not driving:
+		_update_follow(delta)
 	if controlled and not driving and not transitioning and not (is_instance_valid(party) and party.wheel.visible):
 		var devices := Input.get_connected_joypads()
 		if not devices.is_empty():
 			var look := Vector2(Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_X),Input.get_joy_axis(devices[0],JOY_AXIS_RIGHT_Y))
 			if look.length() > 0.18:
+				camera_manual = 1.6
 				yaw -= look.x * delta * 2.2
 				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
 	if is_instance_valid(riding_service):
 		global_position = riding_service.seat_position(self)
 		pivot.rotation = Vector3(pitch,yaw,0)
-		prompt.text = "AURORA • Autonomous journey\nPlease wait for your booked destination"
+		prompt.text = "AURORA • Autonomous journey\nJ: skip journey · P: talk to Aurora · B: camera"
+		if controlled and not _phone_open() and Input.is_physical_key_pressed(KEY_J):
+			riding_service.skip_journey(self)
 		return
 	if is_instance_valid(riding_bus):
 		global_position = riding_bus.seat_position()
@@ -262,7 +277,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if driving:
 		global_position = vehicle.global_position
-		prompt.text = vehicle.display_name + " — △ E: get out (stop first)\nWASD / left stick: drive · R2: accelerate · L2: reverse · ✕ Space: brake · B / R3: camera"
+		prompt.text = vehicle.display_name + " — E: get out (stop first)\nWASD: drive · Space: brake · B: camera"
 	else:
 		pivot.rotation.x = lerpf(pivot.rotation.x, pitch, 1.0 - exp(-12.0 * delta))
 		pivot.rotation.y = lerp_angle(pivot.rotation.y, yaw, 1.0 - exp(-12.0 * delta))
@@ -272,9 +287,11 @@ func _physics_process(delta: float) -> void:
 		elif Input.is_action_just_pressed("heavy_punch"):
 			try_punch(true)
 		var input := Input.get_vector("walk_left", "walk_right", "walk_forward", "walk_back")
+		if input.length()<0.01: follow_yaw = yaw
 		if input.length() > 0.01:
 			folded_arms = false
-		var direction := Basis(Vector3.UP, yaw) * Vector3(input.x, 0, input.y)
+		var direction := Basis(Vector3.UP, follow_yaw if camera_manual<=0 else yaw) * Vector3(input.x, 0, input.y)
+		if input.length()>0.1 and camera_manual>0: follow_yaw = yaw
 		var speed := RUN_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
 		if action_time > 0 or guarding:
 			speed = 0.5
@@ -316,7 +333,7 @@ func _physics_process(delta: float) -> void:
 			animator.speed_scale = clampf(horizontal_speed / (RUN_SPEED if running else WALK_SPEED), 0.65, 1.2)
 		else:
 			_play_clip("fold_arms" if folded_arms else "idle")
-		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look"
+		prompt.text = "ON FOOT — WASD: walk · Shift: run · Space: jump\nHold right mouse and drag: look · B: camera"
 		var house := nearest_house()
 		vehicle = nearest_vehicle() if not is_instance_valid(active_house) else null
 		var furniture := nearest_furniture()
@@ -402,7 +419,8 @@ func nearest_house() -> Node3D:
 
 func try_house(house: Node3D) -> bool:
 	if house!=active_house and is_instance_valid(party.game.economy) and not party.game.economy.can_access(self,house):
-		_notify("Council home "+str(house.house_number)+" — rent it using your phone (P)")
+		party.game.phone.visit_house(house)
+		_notify("Council home "+str(house.house_number)+" • view rent and confirm at this door")
 		return false
 	if dead or transitioning or driving or resting != "" or action_time > 0 or house != nearest_house():
 		return false
@@ -616,6 +634,7 @@ func try_punch(heavy := false) -> bool:
 	folded_arms = false
 	visual.rotation.y = yaw
 	_play_clip("heavy_punch" if heavy else "punch",0.05)
+	get_node("ServiceAudio").effect("whoosh")
 	action_time = 0.85 if heavy else 0.55
 	strike_delay = 0.3 if heavy else 0.18
 	strike_damage = 30 if heavy else 18
@@ -684,3 +703,34 @@ func nearest_city_activity() -> Node3D:
 		if not park.nearest(self).is_empty():
 			return park
 	return null
+
+func _phone_open() -> bool:
+	return is_instance_valid(party) and is_instance_valid(party.game.phone) and party.game.phone.panel.visible
+
+func cycle_view() -> void:
+	if driving and is_instance_valid(vehicle):
+		vehicle.get_node("CameraBase/Camera3D").cycle_view()
+		return
+	camera_mode = (camera_mode+1)%3
+	_notify(["Camera: chase","Camera: close","Camera: wide"][camera_mode])
+
+func _update_follow(delta: float) -> void:
+	var transport: Node3D
+	if is_instance_valid(riding_bus): transport = riding_bus
+	elif is_instance_valid(riding_service):
+		var index := int(get_meta("cab_car",-1))
+		if index>=0: transport = riding_service.cars[index].node
+	if is_instance_valid(transport):
+		if camera_manual<=0:
+			yaw = lerp_angle(yaw,transport.rotation.y+PI,1-exp(-3*delta))
+		var length := 14.0 if transport.is_in_group("city_buses") else 7.5
+		foot_arm.spring_length = length if camera_mode==0 else (0.0 if camera_mode==1 else length+6)
+		pivot.position.y = 1.0 if camera_mode==1 else 1.7
+		foot_arm.collision_mask = 1 # exclude the service's own vehicle collider
+	else:
+		foot_arm.collision_mask = 3
+		pivot.position.y = 1.4
+		if not is_instance_valid(active_house):
+			foot_arm.spring_length = [5.0,2.7,8.0][camera_mode]
+			if camera_manual<=0 and Vector2(velocity.x,velocity.z).length()>0.3:
+				yaw = lerp_angle(yaw,visual.rotation.y,1-exp(-3*delta))

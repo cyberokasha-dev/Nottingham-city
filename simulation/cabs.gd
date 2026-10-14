@@ -10,6 +10,7 @@ var serial := 0
 var update_clock := 0.0
 var npc_clock := 0.0
 var elapsed := 0.0
+var last_notice := {}
 
 func _ready() -> void:
 	for ix in range(game.city.ROAD_X.size()):
@@ -40,6 +41,20 @@ func _ready() -> void:
 			doors.append(door)
 		model.set_meta("doors",doors)
 		game.city.traffic.autonomous_nodes.append(model)
+		model.add_child(preload("res://simulation/service_audio.gd").new())
+		var conversation := preload("res://simulation/cab_dialogue.gd").new()
+		conversation.personality = i%3
+		model.add_child(conversation)
+		var body := AnimatableBody3D.new()
+		body.sync_to_physics = false
+		body.collision_layer = 2
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(1.8,1.5,4.3)
+		shape.shape = box
+		shape.position.y = 0.9
+		body.add_child(shape)
+		model.add_child(body)
 		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label})
 
 func curb(point: Vector3) -> Vector3:
@@ -101,29 +116,42 @@ func quote(person: Node3D, destination: Vector3) -> int:
 
 func book(person: Node3D, destination: Dictionary) -> Dictionary:
 	var key: String = economy.key_for(person)
-	if key=="" or bookings.has(key) or person.get("driving")==true or person.get("riding_bus")!=null or person.get("riding_service")!=null:
-		economy.last_error = "You already have a journey, or must leave your current vehicle first"
+	_reconcile(person)
+	if key=="":
+		economy.last_error = "Your city account is not ready yet"
+		return {}
+	if person.get("driving")==true or is_instance_valid(person.get("riding_bus")) or is_instance_valid(person.get("riding_service")):
+		economy.last_error = "Leave your current vehicle with E before booking another journey"
+		return {}
+	if bookings.has(key):
+		economy.last_error = "You have an active Aurora booking. Check its status below, or cancel it and rebook."
+		return {}
+	if person.get("dead")==true or person.get("transitioning")==true or person.get("resting")!="" or is_instance_valid(person.get("active_house")) or is_instance_valid(person.get("current_house")):
+		economy.last_error = "Stand outside, awake and on foot to meet your cab"
 		return {}
 	var fare := quote(person,destination.point)
 	if economy.cash(person)<fare:
 		economy.last_error = "Not enough money for this journey"
 		return {}
+	last_notice.erase(key)
 	serial += 1
-	var trip := {"id":serial,"person":person,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":str(randi_range(1000,9999)),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0}
+	var trip := {"id":serial,"person":person,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":"%02d" % randi_range(0,99),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0,"created":elapsed,"last_progress":elapsed,"retries":0}
 	bookings[key] = trip
 	person.set_meta("last_cab_booking",elapsed)
 	_dispatch()
 	return trip
 
 func _dispatch() -> void:
-	for key in bookings.keys():
+	var keys := bookings.keys()
+	keys.sort_custom(func(a,b): return a.begins_with("player/") and not b.begins_with("player/"))
+	for key in keys:
 		var trip: Dictionary = bookings[key]
 		if trip.state!="queued":
 			continue
 		var selected := -1
 		var nearest := INF
 		for i in range(cars.size()):
-			if cars[i].state=="idle":
+			if cars[i].state=="idle" and (trip.person.get("controlled")!=null or i>=2):
 				var gap: float = cars[i].node.global_position.distance_to(trip.pickup)
 				if gap<nearest:
 					nearest = gap
@@ -137,6 +165,8 @@ func _dispatch() -> void:
 		car.index = 0
 		trip.car = selected
 		trip.state = "approaching"
+		trip.last_progress = elapsed
+		car.label.text = "AURORA • ON THE WAY"
 		trip.pickup_curb = car.path[-1]
 		var approach: Vector3 = (car.path[-1]-car.path[-2]).normalized() if car.path.size()>1 else car.node.global_basis.z
 		trip.pickup_wait = trip.pickup_curb+Vector3(approach.z,0,-approach.x)*4.7
@@ -166,6 +196,10 @@ func unlock(person: Node3D, pin: String) -> bool:
 	car.index = 0
 	person.riding_service = self
 	person.set_meta("cab_car",int(trip.car))
+	person.set_meta("cab_camera_mode",0)
+	car.node.get_node("ServiceAudio").effect("door")
+	person.set_meta("cab_reply","")
+	car.node.get_node("CabDialogue").say(person,"welcome")
 	person.visual.hide()
 	person.collider.set_deferred("disabled",true)
 	person.velocity = Vector3.ZERO
@@ -177,8 +211,13 @@ func cancel(person: Node3D) -> bool:
 		return false
 	var trip: Dictionary = bookings[key]
 	if int(trip.car)>=0:
+		var car: Dictionary = cars[int(trip.car)]
+		if car.state in ["waiting","pickup"]:
+			car.node.position += car.node.global_basis.x*2.7
 		cars[int(trip.car)].state = "idle"
 		cars[int(trip.car)].booking = ""
+		cars[int(trip.car)].speed = 0.0
+		cars[int(trip.car)].label.text = "AURORA • AVAILABLE"
 	bookings.erase(key)
 	person.set_meta("cab_waiting",false)
 	return true
@@ -193,10 +232,22 @@ func _physics_process(delta: float) -> void:
 	delta = update_clock
 	update_clock = 0
 	elapsed += delta
+	for key in bookings.keys():
+		var trip: Dictionary = bookings[key]
+		if not is_instance_valid(trip.person):
+			_release_orphan(key)
+		elif trip.state=="queued" and elapsed-float(trip.created)>120:
+			_expire(trip,"All Auroras are busy. No fare taken. Please rebook.")
 	_dispatch()
 	for car in cars:
+		if car.state in ["idle","waiting","boarding"]:
+			car.node.get_node("ServiceAudio").set_motion(0,"electric")
 		if car.state=="idle":
 			_doors(car,0.0)
+			continue
+		if not bookings.has(car.booking):
+			car.state = "idle"
+			car.booking = ""
 			continue
 		var trip: Dictionary = bookings[car.booking]
 		var person: Node3D = trip.person
@@ -213,7 +264,7 @@ func _physics_process(delta: float) -> void:
 			if person.get_meta("cab_waiting",false) and person.global_position.distance_to(trip.pickup_curb)<4:
 				unlock(person,trip.pin)
 			elif float(trip.wait)>90:
-				cancel(person)
+				_expire(trip,"Pickup expired. No fare taken. Please book again when you are ready.")
 			continue
 		var path: PackedVector3Array = car.path
 		if int(car.index)>=path.size():
@@ -230,8 +281,18 @@ func _physics_process(delta: float) -> void:
 			car.index = int(car.index)+1
 			continue
 		var direction := offset.normalized()
-		var travel: float = minf(8.0*delta,offset.length())
+		var travel: float = minf(10.0*delta,offset.length())
 		travel = game.city.traffic.allowed_travel(car.node.global_position,direction,travel,2.5,car.node,person)
+		car.speed = travel/maxf(delta,0.001)
+		if travel>0.02:
+			trip.last_progress = elapsed
+		elif elapsed-float(trip.last_progress)>40 and car.state=="pickup":
+			_expire(trip,"Your pickup road is blocked. No fare taken. Move to a clear pavement and rebook.")
+			continue
+		if car.state=="pickup" and elapsed-float(trip.created)>180:
+			_expire(trip,"Aurora could not reach your pickup. No fare taken. Please rebook.")
+			continue
+		car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
 		car.node.global_position += direction*travel
 		car.node.rotation.y = lerp_angle(car.node.rotation.y,atan2(direction.x,direction.z),minf(1,delta*6))
 		for wheel in car.node.get_meta("wheels"):
@@ -246,6 +307,7 @@ func _physics_process(delta: float) -> void:
 func _finish(car: Dictionary, trip: Dictionary) -> void:
 	var person: Node3D = trip.person
 	economy.complete_fare(person)
+	car.node.get_node("CabDialogue").say(person,"arrival")
 	person.riding_service = null
 	person.set_meta("cab_waiting",false)
 	car.node.global_position += car.node.global_basis.x*2.7
@@ -254,6 +316,8 @@ func _finish(car: Dictionary, trip: Dictionary) -> void:
 	person.collider.set_deferred("disabled",false)
 	person.velocity = Vector3.ZERO
 	car.state = "idle"
+	car.speed = 0.0
+	_doors(car,0)
 	car.booking = ""
 	car.label.text = "AURORA • AVAILABLE"
 	bookings.erase(economy.key_for(person))
@@ -279,3 +343,73 @@ func _doors(car: Dictionary, open: float) -> void:
 func is_pickup_near(person: Node3D) -> bool:
 	var key: String = economy.key_for(person)
 	return bookings.has(key) and bookings[key].state=="waiting" and person.global_position.distance_to(bookings[key].pickup_curb)<5
+
+# Repair stale references rather than trapping a player behind an obsolete booking.
+func _reconcile(person: Node3D) -> void:
+	var key: String = economy.key_for(person)
+	if person.get("riding_service")==self and not bookings.has(key):
+		person.riding_service = null
+		person.visual.show()
+		person.collider.set_deferred("disabled",false)
+	if not bookings.has(key): return
+	var trip: Dictionary = bookings[key]
+	var index := int(trip.car)
+	if trip.state!="queued" and (index<0 or index>=cars.size() or cars[index].booking!=key):
+		_release_orphan(key)
+		if person.get("riding_service")==self:
+			person.riding_service = null
+			person.visual.show()
+			person.collider.set_deferred("disabled",false)
+
+func _release_orphan(key: String) -> void:
+	if economy.data.receipts.has(key) and economy.data.accounts.has(key):
+		var refund := int(economy.data.receipts[key].amount)
+		economy.data.accounts[key].balance = int(economy.data.accounts[key].balance)+refund
+		economy.data.receipts.erase(key)
+		economy.record(key,refund,"Unavailable Aurora trip refunded")
+		economy.save()
+	for car in cars:
+		if car.booking==key:
+			car.booking = ""
+			car.state = "idle"
+			car.speed = 0.0
+	bookings.erase(key)
+
+func _expire(trip: Dictionary, text: String) -> void:
+	var person: Node3D = trip.person
+	last_notice[economy.key_for(person)] = text
+	cancel(person)
+	if person.has_method("_notify"): person._notify(text)
+
+func skip_journey(person: Node3D) -> bool:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or bookings[key].state!="riding": return false
+	var trip: Dictionary = bookings[key]
+	var car: Dictionary = cars[int(trip.car)]
+	# Finish the existing receipt once; time skipping never creates a second fare.
+	var destination_path := path_between(car.node.global_position,trip.destination.point)
+	var end := destination_path[-1]
+	if destination_path.size()>1:
+		var forward := (end-destination_path[-2]).normalized()
+		car.node.rotation.y = atan2(forward.x,forward.z)
+	# Use a clear curb space so skipping cannot place the cab inside another car.
+	var left: Vector3 = car.node.global_basis.x
+	end += left*2.7
+	for step in range(10):
+		var clear := true
+		for other in game.city.traffic.vehicle_nodes():
+			if other!=car.node and other.visible and other.global_position.distance_to(end)<8:
+				clear = false
+		if clear: break
+		end += car.node.global_basis.z*7.0
+	car.node.global_position = end-left*2.7
+	_finish(car,trip)
+	return true
+
+func talk(person: Node3D, topic: String) -> bool:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or bookings[key].state not in ["boarding","riding"]:
+		person.set_meta("cab_reply","Board your Aurora to have a conversation.")
+		return false
+	cars[int(bookings[key].car)].node.get_node("CabDialogue").say(person,topic)
+	return true

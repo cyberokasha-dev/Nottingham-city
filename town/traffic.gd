@@ -3,7 +3,7 @@ extends Node3D
 const ROAD_X := [-140.0,-80.0,-40.0,40.0,80.0,140.0]
 const ROAD_Z := [-120.0,-60.0,16.0,80.0,140.0]
 const LEVEL := -5.02
-const CYCLE := 24.0
+const CYCLE := 34.0
 var clock := 0.0
 var cars: Array[Dictionary] = []
 var signals: Array[Dictionary] = []
@@ -80,7 +80,18 @@ func _ready() -> void:
 		collision_body.add_child(collider)
 		car.add_child(collision_body)
 		add_child(car)
+		car.add_child(preload("res://simulation/service_audio.gd").new())
 		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"kind":kind,"speed":7.0+float(i%5)*1.4})
+	for item in cars:
+		for attempt in range(100):
+			var position := lane_position(item,float(item.distance))
+			var clear := true
+			for other in cars:
+				if other==item: break
+				if position.distance_to(lane_position(other,float(other.distance)))<6.2: clear=false
+			if clear: break
+			item.distance = fposmod(float(item.distance)+7.0+155.0,310.0)-155.0
+		item.node.position = lane_position(item,float(item.distance))
 	_process(0.0)
 
 func _process(delta: float) -> void:
@@ -111,14 +122,20 @@ func _process(delta: float) -> void:
 		var green := _green(vertical)
 		var travel := speed*delta
 		travel = minf(travel,_following_gap(item))
+		var heading := Vector3(0,0,direction) if vertical else Vector3(direction,0,0)
+		travel = minf(travel,allowed_travel(item.node.position,heading,travel,2.3,item.node))
 		# Clamp at the stop line even on a long frame. Cars already inside clear it.
 		if not green and crossing>=11.99:
 			travel = minf(travel,maxf(0,crossing-12.0))
+		item.node.get_node("ServiceAudio").set_motion(travel/maxf(delta,0.001),"electric" if item.kind=="cybercab" else "engine")
 		distance += direction*travel
-		if distance>157.0:
-			distance = -157.0
-		elif distance< -157.0:
-			distance = 157.0
+		if distance>157.0 or distance< -157.0:
+			var wrapped := -157.0 if distance>157.0 else 157.0
+			var clear := true
+			for other in vehicle_nodes():
+				if other!=item.node and other.visible and other.global_position.distance_to(lane_position(item,wrapped))<9:
+					clear = false
+			distance = wrapped if clear else clampf(distance,-157,157)
 		item.distance = distance
 		for wheel in item.node.get_meta("wheels",[]):
 			wheel.rotation.x += travel/0.42*direction
@@ -131,11 +148,11 @@ func _process(delta: float) -> void:
 			node.rotation.y = PI/2.0 if direction>0 else -PI/2.0
 
 func _green(vertical: bool) -> bool:
-	return clock<9.0 if vertical else (clock>=12.0 and clock<21.0)
+	return clock<26.0 if vertical else (clock>=28.0 and clock<32.0)
 
 func _update_lamps() -> void:
 	var phase := 0
-	for boundary in [9.0,10.0,11.0,12.0,21.0,22.0,23.0]:
+	for boundary in [26.0,27.0,28.0,32.0,33.0]:
 		if clock>=boundary:
 			phase += 1
 	if phase == last_lamp_phase:
@@ -144,8 +161,8 @@ func _update_lamps() -> void:
 	for junction_signal in signals:
 		var vertical: bool = junction_signal.vertical
 		var green := _green(vertical)
-		var amber := (clock>=9.0 and clock<10.0) if vertical else (clock>=21.0 and clock<22.0)
-		var red_amber := clock>=23.0 if vertical else (clock>=11.0 and clock<12.0)
+		var amber := (clock>=26.0 and clock<27.0) if vertical else (clock>=32.0 and clock<33.0)
+		var red_amber := clock>=33.0 if vertical else (clock>=27.0 and clock<28.0)
 		var indices := [0 if not green and not amber else 1,2 if amber or red_amber else 3,4 if green else 5]
 		for i in range(3):
 			junction_signal.lamps[i].material_override = lamp_materials[indices[i]]
@@ -190,22 +207,40 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 			var ahead: float = (float(crossing)-distance)*signf(axis)
 			if ahead>=11.99 and not _green(vertical):
 				travel = minf(travel,maxf(0,ahead-12.0))
-	var obstacles: Array[Node3D] = []
-	for item in cars:
-		if not item.get("taken",false):
-			obstacles.append(item.node)
-	obstacles.append_array(autonomous_nodes)
-	if is_instance_valid(transport):
-		obstacles.append_array(transport.buses)
+	var obstacles := vehicle_nodes()
 	for other in obstacles:
 		if other == ignore or not other.visible:
 			continue
+		if absf(other.global_position.y-pos.y)>3: continue
 		var offset: Vector3 = other.global_position-pos
-		var ahead := offset.dot(direction)
-		var lateral := (offset-direction*ahead).length()
-		if ahead>0 and lateral<2.6 and other.global_basis.z.dot(direction)>0.7:
-			var other_length := 5.2 if other.is_in_group("city_buses") else 2.3
-			travel = minf(travel,maxf(0,ahead-half_length-other_length-1.8))
+		if offset.length()>half_length+requested+10: continue
+		var other_length := 5.2 if other.is_in_group("city_buses") else 2.3
+		var other_width := 1.3 if other.is_in_group("city_buses") else 1.0
+		var forward := other.global_basis.z.normalized()
+		var right := Vector3(direction.z,0,-direction.x)
+		var other_right := Vector3(forward.z,0,-forward.x)
+		# Swept oriented rectangles. This also sees cross traffic and turning buses.
+		var entry := -INF
+		var exit := INF
+		for axis in [direction,right,forward,other_right]:
+			var radius: float = absf(direction.dot(axis))*half_length+absf(right.dot(axis))*1.0+absf(forward.dot(axis))*other_length+absf(other_right.dot(axis))*other_width+0.45
+			var center: float = offset.dot(axis)
+			var motion: float = direction.dot(axis)
+			if absf(motion)<0.001:
+				if absf(center)>radius:
+					exit = -INF
+					break
+			else:
+				var a := (center-radius)/motion
+				var b := (center+radius)/motion
+				entry = maxf(entry,minf(a,b))
+				exit = minf(exit,maxf(a,b))
+		if entry<=exit and exit>=0:
+			if entry>=0:
+				travel = minf(travel,maxf(0,entry-0.15))
+			elif offset.dot(direction)>0.1:
+				# Existing overlap: only allow the vehicle moving out, never deeper in.
+				travel = 0.0
 	return minf(travel,_pedestrian_gap(pos,direction,half_length+1.2,ignored_person))
 
 func _pedestrian_gap(pos: Vector3, direction: Vector3, clearance: float, ignored_person: Node3D = null) -> float:
@@ -217,7 +252,7 @@ func _pedestrian_gap(pos: Vector3, direction: Vector3, clearance: float, ignored
 			continue
 		if person.driving or person.resting!="" or not person.visible:
 			continue
-		if person.get("riding_bus")!=null:
+		if is_instance_valid(person.get("riding_bus")) or is_instance_valid(person.get("riding_service")):
 			continue
 		var offset: Vector3 = person.global_position-pos
 		var ahead := offset.dot(direction)
@@ -238,6 +273,7 @@ func claim_car(person: CharacterBody3D) -> bool:
 	item.taken = true
 	var pose: Transform3D = item.node.global_transform
 	item.node.hide()
+	item.node.get_node("ServiceAudio").engine.stop()
 	for collider in item.node.find_children("*","CollisionShape3D",true,false):
 		collider.set_deferred("disabled",true)
 	var rig := preload("res://vehicles/vehicle_factory.gd").make(item.kind)
@@ -250,3 +286,18 @@ func claim_car(person: CharacterBody3D) -> bool:
 	game.fleet.append(body)
 	await get_tree().physics_frame
 	return person.try_enter()
+
+func lane_position(item: Dictionary, distance: float) -> Vector3:
+	return Vector3(ROAD_X[maxi(0,int(item.lane))]+item.offset,LEVEL,distance) if item.vertical else Vector3(distance,LEVEL,ROAD_Z[maxi(0,int(item.lane))]+item.offset)
+
+func vehicle_nodes() -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	for item in cars:
+		if not item.get("taken",false): nodes.append(item.node)
+	for node in autonomous_nodes:
+		if is_instance_valid(node): nodes.append(node)
+	if is_instance_valid(transport): nodes.append_array(transport.buses)
+	if is_inside_tree():
+		for body in get_tree().get_nodes_in_group("driveable_vehicles"):
+			if is_instance_valid(body): nodes.append(body)
+	return nodes

@@ -20,9 +20,11 @@ var checkpoints: Array[Vector3] = []
 var run_rings: Array[MeshInstance3D] = []
 var user_start := Vector3.ZERO
 var heal_accumulator := 0.0
+var ball_previous := Vector3(-3,0.6,-5)
 
 func _ready() -> void:
 	add_to_group("city_activities")
+	add_child(preload("res://simulation/service_audio.gd").new())
 	var grass := G.material(Color("6f9856"))
 	var chalk := G.material(Color("f2f0d3"))
 	var steel := G.material(Color("57786a"),0.5)
@@ -122,7 +124,54 @@ func _ready() -> void:
 		run_rings.append(ring)
 	activities.append({"kind":"run","point":checkpoints[0],"title":"start timed park lap","index":0})
 	G.label(self,"PARK LAP\nE to start • run through gold rings",checkpoints[0]+Vector3(0,1.8,0),21).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_landscape(parts,steel,wood)
 	G.merge(parts)
+
+func _landscape(parts: Node3D, steel: Material, wood: Material) -> void:
+	var gravel := G.material(Color("c6b99b"))
+	var soil := G.material(Color("66503a"))
+	var leaf := G.material(Color("4a8056"))
+	var flower := G.material(Color("e4a8c9"))
+	# Rounded recreation path around the play areas, made of connected short curves.
+	var route: Array[Vector3] = []
+	for corner in [Vector2(10,12),Vector2(-10,12),Vector2(-10,-12),Vector2(10,-12)]:
+		var angle := atan2(corner.y,corner.x)
+		for step in range(9):
+			var a := angle-PI/4+step*PI/16
+			route.append(Vector3(corner.x+cos(a)*2,0.06,corner.y+sin(a)*2))
+	for i in range(route.size()):
+		var a: Vector3 = route[i]
+		var b: Vector3 = route[(i+1)%route.size()]
+		var path := G.box(parts,(a+b)*0.5,Vector3(1.35,0.055,a.distance_to(b)+0.1),gravel)
+		path.rotation.y = atan2((b-a).x,(b-a).z)
+	for x in [-13.5,13.5]:
+		for z in range(-15,16,3):
+			if abs(z)<3: continue # accessible east/west gates
+			G.tube(parts,Vector3(x,0,z),Vector3(x,1.0,z),0.04,steel)
+			if z<15 and abs(z+1.5)>3:
+				G.tube(parts,Vector3(x,0.65,z),Vector3(x,0.65,z+3),0.027,steel)
+	for z in [-15.5,15.5]:
+		for x in range(-12,13,3):
+			if abs(x)<3: continue
+			G.tube(parts,Vector3(x,0,z),Vector3(x,1,z),0.04,steel)
+			if x<12 and abs(x+1.5)>3: G.tube(parts,Vector3(x,0.65,z),Vector3(x+3,0.65,z),0.027,steel)
+	for side in [-1.0,1.0]:
+		for z in [-11.0,12.0]:
+			var x: float = side*11
+			G.sphere(parts,Vector3(x,0.17,z),Vector3(2.4,0.32,1.4),soil)
+			for i in range(5):
+				G.sphere(parts,Vector3(x-0.8+i*0.4,0.4,z),Vector3(0.5,0.5,0.5),leaf)
+				G.sphere(parts,Vector3(x-0.8+i*0.4,0.65,z),Vector3(0.2,0.18,0.2),flower)
+	for z in [-10.0,11.5]:
+		G.tube(parts,Vector3(10,0,z),Vector3(10,3.4,z),0.045,steel)
+		G.sphere(parts,Vector3(10,3.4,z),Vector3(0.28,0.32,0.28),G.material(Color("ffe3a1"),0,true))
+		G.tube(parts,Vector3(10,0.15,z+1),Vector3(10,0.8,z+1),0.25,steel)
+		G.label(self,"Keep our parks tidy",Vector3(10,1.2,z+1),14).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Centre circle and penalty areas improve the existing playable football pitch.
+	for step in range(32):
+		var a := step*TAU/32
+		var b := (step+1)*TAU/32
+		G.tube(parts,Vector3(-3+cos(a)*2,0.075,-5+sin(a)*2),Vector3(-3+cos(b)*2,0.075,-5+sin(b)*2),0.028,G.material(Color("eee7cf")))
 
 func _solid(pos: Vector3, size: Vector3) -> void:
 	var body := StaticBody3D.new()
@@ -138,6 +187,7 @@ func reset_ball() -> void:
 	ball.position = Vector3(-3,0.6,-5)
 	ball.linear_velocity = Vector3.ZERO
 	ball.angular_velocity = Vector3.ZERO
+	ball_previous = ball.position
 
 func nearest(person: Node3D) -> Dictionary:
 	if person.global_position.distance_to(ball.global_position)<2.0:
@@ -161,6 +211,7 @@ func use(person: CharacterBody3D) -> bool:
 		if direction.length()<0.01:
 			direction = Vector3.FORWARD
 		ball.apply_central_impulse(direction.normalized()*4.8+Vector3.UP*1.5)
+		get_node("ServiceAudio").effect("kick")
 		person._notify("Football kicked — aim between the posts")
 		return true
 	if item.kind=="run":
@@ -223,11 +274,13 @@ func _physics_process(delta: float) -> void:
 	for i in range(swings.size()):
 		swings[i].rotation.z = sin(phase*1.8+i)* (0.48 if active_kind=="swing" and active_index==i else 0.08)
 	score_delay = maxf(0,score_delay-delta)
-	if score_delay<=0 and absf(ball.position.x+3)<2.5 and ball.position.y<2.1 and (ball.position.z< -13 or ball.position.z>3):
+	if score_delay<=0 and absf(ball.position.x+3)<2.5 and ball.position.y<2.1 and ((ball_previous.z>=-13 and ball.position.z< -13) or (ball_previous.z<=3 and ball.position.z>3)):
 		goals += 1
+		get_node("ServiceAudio").effect("goal")
 		scoreboard.text = park_name+"\nGOAL! • "+str(goals)+" scored"
 		score_delay = 2.0
 		reset_ball()
+	ball_previous = ball.position
 	if ball.position.y< -5 or ball.position.length()>40:
 		reset_ball()
 	if is_instance_valid(runner) and run_checkpoint>=0:

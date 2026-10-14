@@ -89,6 +89,13 @@ jobs:
           godot --headless --path . --script res://tests/party_dialogue.gd 2>&1 | tee /tmp/party-dialogue.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/party-dialogue.log; then exit 1; fi
           grep -q 'PARTY_DIALOGUE_OK' /tmp/party-dialogue.log
+      - name: Check booking recovery, safe stops, skip journey and chase cameras
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/refinements.gd 2>&1 | tee /tmp/refinements.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/refinements.log; then exit 1; fi
+          grep -q 'REFINEMENTS_OK' /tmp/refinements.log
       - name: Export browser game
         shell: bash
         run: |

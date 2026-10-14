@@ -13,12 +13,16 @@ var council: RichTextLabel
 var filtered: Array[Dictionary] = []
 var offers: Array[int] = []
 var refresh_clock := 0.0
+var tabs: TabContainer
+var conversation: Label
+var rent_button: Button
+var selected_house := 0
 
 func _ready() -> void:
 	layer = 20
 	panel = PanelContainer.new()
 	panel.position = Vector2(25,55)
-	panel.custom_minimum_size = Vector2(560,590)
+	panel.custom_minimum_size = Vector2(560,560)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("101d28")
 	style.set_corner_radius_all(12)
@@ -38,10 +42,10 @@ func _ready() -> void:
 	header.add_child(title)
 	var close := Button.new()
 	close.text = "Close"
-	close.pressed.connect(func(): panel.hide())
+	close.pressed.connect(func(): panel.hide(); _release_focus())
 	header.add_child(close)
 	summary = _label(rows,"")
-	var tabs := TabContainer.new()
+	tabs = TabContainer.new()
 	tabs.custom_minimum_size = Vector2(550,380)
 	rows.add_child(tabs)
 	var cab := _tab(tabs,"Aurora")
@@ -60,20 +64,44 @@ func _ready() -> void:
 		show_message("Booking accepted. Meet Aurora at the safe road pickup shown on the map." if not booking.is_empty() else game.economy.last_error)
 		update_display())
 	pin = LineEdit.new()
-	pin.placeholder_text = "Enter your four-digit code at the cab door"
-	pin.max_length = 4
+	pin.placeholder_text = "Enter your two-digit code at the cab door"
+	pin.max_length = 2
+	pin.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
 	cab.add_child(pin)
 	_button(cab,"Unlock and board Aurora",func():
 		show_message("Door unlocked • fare paid • journey starting" if game.cabs.unlock(game.player,pin.text) else "Check your PIN and stand beside your arrived cab. Three errors lock it for 10 seconds.")
 		update_display())
 	_button(cab,"Cancel unstarted booking",func(): show_message("Booking cancelled" if game.cabs.cancel(game.player) else "No cancellable booking"))
+	_button(cab,"Skip journey • keep the same fare",func():
+		show_message("Arrived at your destination" if game.cabs.skip_journey(game.player) else "Board with your code and wait for the doors to close first."))
+	conversation = _label(cab,"Talk to your Aurora during a journey:")
+	var topics := HBoxContainer.new()
+	cab.add_child(topics)
+	for item in [["Traffic","traffic"],["Local places","area"],["Help","help"],["Quiet please","quiet"]]:
+		_button(topics,item[0],func(): game.cabs.talk(game.player,item[1]))
 	var housing := _tab(tabs,"Housing")
-	_label(housing,"Council homes • first month paid when renting • £400/month\nOne tenancy per person. Door entry requires your tenancy.")
+	_label(housing,"Council homes • £400/month • visit a front door to rent\nSelect a home to mark its entrance. Confirm rent when you arrive.")
 	properties = OptionButton.new()
 	housing.add_child(properties)
-	_button(housing,"Rent selected home",func():
+	properties.item_selected.connect(func(index):
+		if index>=0 and index<offers.size():
+			selected_house = offers[index]
+			game.city_map.destination = game.economy.houses[selected_house].entrance()
+			game.city_map.destination_active = true)
+	_button(housing,"Visit selected home • show walking destination",func():
+		if not offers.is_empty(): _navigate(game.economy.houses[offers[properties.selected]].entrance()))
+	_button(housing,"Book Aurora to selected home",func():
+		if offers.is_empty(): return
+		var house: Node3D = game.economy.houses[offers[properties.selected]]
+		var trip: Dictionary = game.cabs.book(game.player,{"name":house.address,"point":house.entrance()})
+		tabs.current_tab = 0
+		show_message("Aurora booked to "+house.address if not trip.is_empty() else game.economy.last_error))
+	_button(housing,"Confirm £400 first month • at the front door",func():
 		if offers.is_empty(): return
 		var number: int = offers[properties.selected]
+		if game.player.global_position.distance_to(game.economy.houses[number].entrance())>3:
+			show_message("Visit this home's front door to confirm the tenancy. Use Visit selected home for directions.")
+			return
 		show_message("You now rent house "+str(number) if game.economy.rent(game.player,number) else game.economy.last_error)
 		_offers()
 		update_display())
@@ -116,6 +144,12 @@ func _ready() -> void:
 	open.position = Vector2(215,20)
 	open.pressed.connect(toggle)
 	add_child(open)
+	var camera_button := Button.new()
+	camera_button.text = "B • Change camera"
+	camera_button.position = Vector2(495,20)
+	camera_button.focus_mode = Control.FOCUS_NONE
+	camera_button.pressed.connect(func(): game.player.cycle_view())
+	add_child(camera_button)
 
 func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
 	var tab := VBoxContainer.new()
@@ -164,6 +198,7 @@ func _offers() -> void:
 		if str(game.economy.house_record(number).tenant)=="":
 			offers.append(number)
 			properties.add_item("House "+str(number)+" • "+game.economy.houses[number].street+" • £400/month")
+	if selected_house in offers: properties.select(offers.find(selected_house))
 
 func _quote() -> void:
 	if not filtered.is_empty():
@@ -173,6 +208,7 @@ func _navigate(point: Vector3) -> void:
 	game.city_map.destination = point
 	game.city_map.destination_active = true
 	panel.hide()
+	_release_focus()
 
 func update_display() -> void:
 	var account: Dictionary = game.economy.account_for(game.player)
@@ -180,12 +216,19 @@ func update_display() -> void:
 	var key: String = game.economy.key_for(game.player)
 	if game.cabs.bookings.has(key):
 		var trip: Dictionary = game.cabs.bookings[key]
-		cab_status.text = "Aurora %s • %s\nFare %s • Your PIN: %s" % [str(int(trip.car)+1) if int(trip.car)>=0 else "queue",trip.state,game.economy.pounds(int(trip.fare)),trip.pin]
-		if trip.has("pickup_curb") and trip.state!="riding":
+		cab_status.text = "Aurora %s • %s\nFare %s • Your two-digit PIN: %s" % [str(int(trip.car)+1) if int(trip.car)>=0 else "queue",trip.state,game.economy.pounds(int(trip.fare)),trip.pin]
+		if trip.state=="approaching" and int(trip.car)>=0:
+			cab_status.text += "\nCab is %dm from the road pickup. Cancel and rebook if your road is blocked." % int(game.cabs.cars[int(trip.car)].node.global_position.distance_to(trip.pickup_curb))
+		if trip.state=="waiting":
+			cab_status.text += "\nArrived • walk to the blue map marker, then enter your code."
+		if trip.has("pickup_curb") and trip.state in ["approaching","waiting"]:
 			game.city_map.destination = trip.pickup_curb
 			game.city_map.destination_active = true
 	else:
 		_quote()
+		var notice: String = game.cabs.last_notice.get(key,"")
+		if notice!="": cab_status.text += "\n"+notice
+	conversation.text = str(game.player.get_meta("cab_reply","Talk to Aurora: traffic, local places, travel help, or quiet mode."))
 	var text: String = "COUNCIL TREASURY: "+game.economy.pounds(int(game.economy.data.council))+"\n"
 	text += "Cash in: "+game.economy.pounds(int(game.economy.data.get("cash_in",0)))+" • Cash out: "+game.economy.pounds(int(game.economy.data.get("cash_out",0)))+"\nRecent council cash movements:\n"
 	var ledger: Array = game.economy.data.ledger
@@ -198,8 +241,13 @@ func update_display() -> void:
 	council.text = text
 
 func _process(delta: float) -> void:
+	var available := get_viewport().get_visible_rect().size
+	var factor := minf(1,minf((available.x-35)/580.0,(available.y-75)/maxf(panel.size.y,560)))
+	panel.scale = Vector2.ONE*maxf(0.4,factor)
 	game.player.hud.visible = not panel.visible
 	game.player.controls.visible = not panel.visible
+	if game.player.driving and is_instance_valid(game.player.vehicle):
+		game.player.vehicle.set_meta("controls_blocked",panel.visible)
 	refresh_clock += delta
 	if panel.visible and refresh_clock>0.5:
 		refresh_clock = 0
@@ -209,3 +257,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_P:
 		toggle()
 		get_viewport().set_input_as_handled()
+
+func visit_house(house: Node3D) -> void:
+	selected_house = int(house.house_number)
+	_offers()
+	panel.show()
+	tabs.current_tab = 1
+	show_message(house.address+" • £400/month. Confirm only if you want to rent this home.")
+
+func _release_focus() -> void:
+	var focus := get_viewport().gui_get_focus_owner()
+	if is_instance_valid(focus): focus.release_focus()

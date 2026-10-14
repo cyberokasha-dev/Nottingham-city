@@ -23,7 +23,7 @@ func run_checks() -> void:
     traffic.set_process(false)
     for bus in network.buses:
         bus.set_physics_process(false)
-    if not check(network.routes.size()==4 and network.buses.size()==12 and network.stops.size()==24,"Four routes, twelve buses and 24 shelters"):
+    if not check(network.routes.size()==4 and network.buses.size()==12 and network.stops.size()>24,"Four routes, twelve buses and more frequent local shelters"):
         return
     for car in traffic.cars:
         if not check(car.node.has_meta("vehicle_kind") and car.node.get_meta("wheels").size()==4,"Detailed fleet models and four rotating wheels replace boxes"):
@@ -42,13 +42,13 @@ func run_checks() -> void:
             var sample: Dictionary = network.sample(route,stop.distance)
             if not check(sample.position.distance_to(stop.position)<0.05,"Stops lie precisely on their continuous route"):
                 return
-            if not check(stop.waiting.size()==2 and stop.pavement.distance_to(stop.position)>4.0,"Waiting passengers stand on the pavement"):
+            if not check(stop.waiting.size()==3 and stop.pavement.distance_to(stop.position)>4.0,"Waiting passengers stand on the pavement"):
                 return
     var bus = network.buses[0]
     # Isolate the bus to test rules without a queue obscuring red-light behaviour.
     var fake_traffic = Node3D.new()
     fake_traffic.set_script(preload("res://town/traffic.gd"))
-    fake_traffic.clock = 12.0
+    fake_traffic.clock = 28.0
     var allowed: float = fake_traffic.allowed_travel(Vector3(42.8,traffic.LEVEL,-140),Vector3.BACK,100.0,6.5,bus)
     if not check(is_equal_approx(allowed,8.0),"Bus clamps at red light before junction"):
         return
@@ -116,8 +116,8 @@ func run_checks() -> void:
     var original_traffic = network.traffic
     network.traffic = rule_only
     var completed_before: int = bus.services_completed
-    for frame in range(12000):
-        rule_only.clock = fposmod(float(frame)/30.0,24.0)
+    for frame in range(18000):
+        rule_only.clock = fposmod(float(frame)/30.0,traffic.CYCLE)
         bus.advance(1.0/30.0)
         if bus.services_completed>=completed_before+7:
             break

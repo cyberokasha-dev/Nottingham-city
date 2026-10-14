@@ -42,7 +42,12 @@ func _ready() -> void:
 	collider.add_child(shape)
 	add_child(collider)
 	passengers = 0
+	add_child(preload("res://simulation/service_audio.gd").new())
 	_update_position()
+	find_next_stop()
+
+func find_next_stop() -> void:
+	next_stop = 0
 	for i in range(route.stops.size()):
 		if float(route.stops[i].distance) > distance+1:
 			next_stop = i
@@ -55,6 +60,7 @@ func _physics_process(delta: float) -> void:
 		step_clock = 0.0
 
 func advance(delta: float) -> void:
+	get_node("ServiceAudio").set_motion(speed,"bus" if visible else "silent")
 	if state=="depot":
 		speed = 0
 		if manager.elapsed>=next_departure:
@@ -112,10 +118,11 @@ func arrive(index: int) -> void:
 	stop_index = index
 	next_stop = (index+1)%route.stops.size()
 	state = "dwell"
-	dwell = 15.0
+	dwell = 8.0
+	get_node("ServiceAudio").effect("door")
 	dwell_elapsed = 0
 	boarding_clock = 0
-	var terminal: String = {"60":"GEDLING","61":"CALVERTON","44":"GEDLING","C1":"PARKS"}[route.number] if index<3 else "VICTORIA CENTRE"
+	var terminal: String = {"60":"GEDLING","61":"CALVERTON","44":"GEDLING","C1":"PARKS"}[route.number] if index<route.stops.size()/2 else "VICTORIA CENTRE"
 	model.destination.text = route.number+"  "+terminal+"\nNext: "+str(route.stops[next_stop].name).left(23)
 	model.destination.font_size = 18
 	speed = 0

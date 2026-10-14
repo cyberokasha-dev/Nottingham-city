@@ -6,6 +6,8 @@ var legs: Array[Node3D] = []
 var arms: Array[Node3D] = []
 var phase := 0.0
 var walking := false
+var knees: Array[Node3D] = []
+var seated := false
 
 func _ready() -> void:
 	var skin := G.material([Color("824e33"),Color("cf9b75"),Color("e0b795"),Color("533522")][variant%4])
@@ -24,8 +26,13 @@ func _ready() -> void:
 		leg.position = Vector3(side*0.12,0.93,0)
 		add_child(leg)
 		G.tube(leg,Vector3.ZERO,Vector3(0,-0.42,0),0.09,pants)
-		G.tube(leg,Vector3(0,-0.42,0),Vector3(0,-0.8,0),0.066,pants)
-		G.sphere(leg,Vector3(0,-0.84,0.06),Vector3(0.15,0.13,0.28),hair)
+		var knee := Node3D.new()
+		knee.position = Vector3(0,-0.42,0)
+		leg.add_child(knee)
+		G.tube(knee,Vector3.ZERO,Vector3(0,-0.38,0),0.066,pants)
+		G.sphere(knee,Vector3(0,-0.42,0.06),Vector3(0.15,0.13,0.28),hair)
+		G.merge(knee)
+		knees.append(knee)
 		G.merge(leg)
 		legs.append(leg)
 		var arm := Node3D.new()
@@ -44,3 +51,10 @@ func _process(delta: float) -> void:
 	for i in range(2):
 		legs[i].rotation.x = sin(phase+i*PI)*0.4
 		arms[i].rotation.x = -sin(phase+i*PI)*0.3
+
+func set_seated(value: bool) -> void:
+	seated = value
+	for i in range(legs.size()):
+		legs[i].rotation.x = -PI/2 if value else 0.0
+		knees[i].rotation.x = PI/2 if value else 0.0
+	for arm in arms: arm.rotation.x = -0.35 if value else 0.0
