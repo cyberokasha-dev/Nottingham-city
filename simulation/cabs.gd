@@ -1,5 +1,5 @@
 extends Node3D
-# Six driverless Aurora cars share a road graph and a FIFO booking queue.
+# Driverless Auroras share legal lanes, neighbourhood ranks and a booking queue.
 const F = preload("res://vehicles/vehicle_factory.gd")
 var game: Node3D
 var economy: Node
@@ -11,14 +11,19 @@ var update_clock := 0.0
 var npc_clock := 0.0
 var elapsed := 0.0
 var last_notice := {}
+var ranks: Array[Dictionary] = []
 
 func _ready() -> void:
 	_build_lane_graph()
-	for i in range(6):
+	ranks = game.city.districts.duplicate(true)
+	_build_ranks()
+	for i in range(ranks.size()*2):
 		var model := Node3D.new()
 		model.name = "Aurora"+str(i+1)
 		add_child(model)
-		model.position = Vector3(45.5,game.city.traffic.LEVEL,30+i*7)
+		var rank: Dictionary = ranks[int(i/2)]
+		model.rotation.y = float(rank.heading)
+		model.position = rank.rank+model.basis.z*float(i%2)*7.0
 		var graphics := preload("res://vehicles/aurora_model.gd").make(i+1)
 		model.add_child(graphics)
 		graphics.set_as_top_level(true)
@@ -42,7 +47,7 @@ func _ready() -> void:
 		shape.position.y = 0.9
 		body.add_child(shape)
 		model.add_child(body)
-		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label,"cab_id":"AR-%03d" % (i+1)})
+		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label,"cab_id":"AR-%03d" % (i+1),"rank":int(i/2),"home_slot":model.position,"idle_clock":0.0})
 
 func curb(point: Vector3) -> Vector3:
 	var best := Vector3.ZERO
@@ -126,11 +131,28 @@ func _safe_destination(point: Vector3) -> Dictionary:
 
 func path_between(from: Vector3, destination: Vector3, facing := Vector3.ZERO) -> PackedVector3Array:
 	var start := _road_anchor(from,facing)
+	var prefix := PackedVector3Array()
+	var lateral: float = (start.point-from).cross(start.direction).length()
+	if facing.length()>0.5 and lateral>0.3 and lateral<4.5:
+		# Leave a curb in a forward S-curve, never by rotating sideways into traffic.
+		var room := 8.0
+		for crossing in (game.city.ROAD_Z if int(start.heading)%2==0 else game.city.ROAD_X):
+			var coordinate: float = from.z if int(start.heading)%2==0 else from.x
+			var ahead: float = (float(crossing)-coordinate)*(start.direction.z if int(start.heading)%2==0 else start.direction.x)
+			if ahead>0: room=minf(room,maxf(0,ahead-10.5))
+		room = maxf(2.0,room)
+		start.point+=start.direction*room
+		var a: Vector3 = from+start.direction*room*0.45
+		var b: Vector3 = start.point-start.direction*room*0.45
+		prefix.append(from)
+		for step in range(1,13):
+			var t := step/12.0
+			prefix.append(pow(1-t,3)*from+3*pow(1-t,2)*t*a+3*(1-t)*t*t*b+t*t*t*start.point)
 	var finish := _safe_destination(destination)
 	var direction: Vector3 = start.direction
 	var offset: Vector3 = finish.point-start.point
 	if int(start.heading)==int(finish.heading) and offset.cross(direction).length()<0.1 and offset.dot(direction)>=-0.1:
-		return PackedVector3Array([start.point,finish.point])
+		return prefix+PackedVector3Array([start.point,finish.point])
 	var entry := -1
 	var exit := -1
 	var entry_gap := INF
@@ -162,7 +184,7 @@ func path_between(from: Vector3, destination: Vector3, facing := Vector3.ZERO) -
 		return PackedVector3Array() # Dispatcher reports an unavailable road, never cuts across homes.
 	var ids := graph.get_id_path(entry,exit)
 	if ids.is_empty(): return PackedVector3Array()
-	var path := PackedVector3Array([start.point])
+	var path := prefix+PackedVector3Array([start.point])
 	for i in range(ids.size()):
 		var point := graph.get_point_position(ids[i])
 		if i>0 and ids[i-1]%2==0 and ids[i]%2==1 and int(ids[i-1]/8)==int(ids[i]/8):
@@ -189,7 +211,7 @@ func quote(person: Node3D, destination: Vector3) -> int:
 		length += path[i-1].distance_to(path[i])
 	return 300+int(ceil(length*3.0))
 
-func book(person: Node3D, destination: Dictionary = {}, passenger_name: String = "") -> Dictionary:
+func book(person: Node3D, destination: Dictionary = {}, passenger_name: String = "", preferred_car := -1) -> Dictionary:
 	var key: String = economy.key_for(person)
 	_reconcile(person)
 	if key=="":
@@ -213,7 +235,7 @@ func book(person: Node3D, destination: Dictionary = {}, passenger_name: String =
 		return {}
 	last_notice.erase(key)
 	serial += 1
-	var trip := {"id":serial,"person":person,"passenger_name":passenger_name,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":"%02d" % randi_range(0,99),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0,"created":elapsed,"last_progress":elapsed,"retries":0}
+	var trip := {"id":serial,"person":person,"passenger_name":passenger_name,"preferred_car":preferred_car,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":"%02d" % randi_range(0,99),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0,"created":elapsed,"last_progress":elapsed,"retries":0}
 	bookings[key] = trip
 	person.set_meta("last_cab_booking",elapsed)
 	_dispatch()
@@ -230,8 +252,9 @@ func _dispatch() -> void:
 		var nearest := INF
 		var selected_path := PackedVector3Array()
 		for i in range(cars.size()):
-			if cars[i].state=="idle" and (trip.person.get("controlled")!=null or i>=2):
-				var candidate := path_between(cars[i].node.global_position,trip.pickup,cars[i].node.global_basis.z)
+			if cars[i].state in ["idle","returning"] and (trip.person.get("controlled")!=null or i>=2):
+				if int(trip.get("preferred_car",-1))>=0 and i!=int(trip.preferred_car): continue
+				var candidate := PackedVector3Array([cars[i].node.global_position]) if int(trip.get("preferred_car",-1))==i else _pickup_path(cars[i],trip.pickup)
 				if candidate.is_empty(): continue
 				var cost: float = cars[i].node.global_position.distance_to(candidate[0])
 				for j in range(1,candidate.size()): cost+=candidate[j-1].distance_to(candidate[j])
@@ -253,6 +276,10 @@ func _dispatch() -> void:
 		trip.pickup_curb = car.path[-1]
 		var approach: Vector3 = (car.path[-1]-car.path[-2]).normalized() if car.path.size()>1 else car.node.global_basis.z
 		trip.pickup_wait = trip.pickup_curb+Vector3(approach.z,0,-approach.x)*4.7
+		if int(trip.get("preferred_car",-1))>=0:
+			car.state = "waiting"
+			trip.state = "waiting"
+			car.node.get_meta("marker").show()
 
 func unlock(person: Node3D, pin: String) -> bool:
 	var key: String = economy.key_for(person)
@@ -428,6 +455,17 @@ func _physics_process(delta: float) -> void:
 			car.node.get_node("ServiceAudio").set_motion(0,"electric")
 		if car.state=="idle":
 			_doors(car,0.0)
+			car.idle_clock = float(car.idle_clock)+delta
+			if float(car.idle_clock)>8 and car.node.global_position.distance_to(car.home_slot)>9:
+				var home_path := path_between(car.node.global_position,car.home_slot,car.node.global_basis.z)
+				if not home_path.is_empty():
+					car.path = home_path
+					car.index = 0
+					car.state = "returning"
+					_branding(car,"AVAILABLE • "+str(ranks[int(car.rank)].name))
+			continue
+		if car.state=="returning":
+			_return_to_rank(car,delta)
 			continue
 		if not bookings.has(car.booking):
 			car.state = "idle"
@@ -435,6 +473,9 @@ func _physics_process(delta: float) -> void:
 			continue
 		var trip: Dictionary = bookings[car.booking]
 		var person: Node3D = trip.person
+		if car.state=="pickup" and elapsed-float(trip.created)>180:
+			_expire(trip,"Aurora could not reach your pickup. No fare taken. Please rebook.")
+			continue
 		if car.state=="boarding":
 			car.board_clock = float(car.board_clock)+delta
 			_doors(car,clampf(float(car.board_clock),0,1) if float(car.board_clock)<2 else maxf(0,3.0-float(car.board_clock)))
@@ -474,6 +515,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		var direction := offset.normalized()
 		var travel: float = minf(10.0*delta,offset.length())
+		car.node.set_meta("traffic_straight",game.city.traffic.path_is_straight(car.path,int(car.index),car.node.global_position,direction))
 		travel = game.city.traffic.allowed_travel(car.node.global_position,direction,travel,2.5,car.node,person)
 		car.speed = travel/maxf(delta,0.001)
 		if travel>0.02:
@@ -486,7 +528,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
 		car.node.global_position += direction*travel
-		car.node.rotation.y = atan2(direction.x,direction.z)
+		if travel>0.001: car.node.rotation.y = atan2(direction.x,direction.z)
 		for wheel in car.node.get_meta("wheels"):
 			wheel.rotation.x += travel/0.36
 		if trip.state=="riding":
@@ -509,6 +551,7 @@ func _finish(car: Dictionary, trip: Dictionary) -> void:
 	person.collider.set_deferred("disabled",false)
 	person.velocity = Vector3.ZERO
 	car.state = "idle"
+	car.idle_clock = 0.0
 	car.speed = 0.0
 	_doors(car,0)
 	car.booking = ""
@@ -596,7 +639,7 @@ func skip_journey(person: Node3D) -> bool:
 
 func talk(person: Node3D, topic: String) -> bool:
 	var key: String = economy.key_for(person)
-	if not bookings.has(key) or bookings[key].state not in ["boarding","riding"]:
+	if not bookings.has(key) or bookings[key].state not in ["boarding","riding","awaiting_destination"]:
 		person.set_meta("cab_reply","Board your Aurora to have a conversation.")
 		return false
 	cars[int(bookings[key].car)].node.get_node("CabDialogue").say(person,topic)
@@ -619,3 +662,76 @@ func _park_at_curb(car: Dictionary) -> void:
 			car.node.global_position = candidate
 			car.node.rotation.y = atan2(direction.x,direction.z)
 			return
+
+func _build_ranks() -> void:
+	var G = preload("res://transport/geometry.gd")
+	for rank in ranks:
+		var stand := Node3D.new()
+		stand.name = "AuroraRank_"+str(rank.id)
+		stand.position = rank.rank
+		stand.rotation.y = float(rank.heading)
+		add_child(stand)
+		var gold := G.material(Color("c6aa69"),0.5)
+		var dark := G.material(Color("24323c"))
+		G.tube(stand,Vector3(2.1,0,4.7),Vector3(2.1,2.8,4.7),0.055,dark)
+		G.box(stand,Vector3(2.1,2.65,4.7),Vector3(0.8,0.65,0.1),gold)
+		var sign := G.label(stand,"AURORA • "+str(rank.name)+"\nE: walk-up cab · K: request pickup",Vector3(2.1,3.2,4.7),20)
+		sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		for slot in range(2):
+			for side in [-1.0,1.0]: G.box(stand,Vector3(side*1.05,0.015,slot*7),Vector3(0.06,0.02,5.6),gold)
+			G.box(stand,Vector3(0,0.015,slot*7-2.8),Vector3(2.1,0.02,0.06),gold)
+		G.merge(stand)
+
+func nearest_available(person: Node3D) -> int:
+	var selected := -1
+	var gap := 4.0
+	for i in range(cars.size()):
+		if cars[i].state!="idle" or (person.get("controlled")==null and i<2): continue
+		var distance: float = person.global_position.distance_to(cars[i].node.global_position)
+		if distance<gap:
+			gap = distance
+			selected = i
+	return selected
+
+func walk_up(person: Node3D, index: int) -> Dictionary:
+	if index<0 or index>=cars.size() or cars[index].state!="idle" or person.global_position.distance_to(cars[index].node.global_position)>4:
+		economy.last_error = "Walk to an available parked Aurora first."
+		return {}
+	return book(person,{},"",index)
+
+func _return_to_rank(car: Dictionary, delta: float) -> void:
+	if int(car.index)>=car.path.size():
+		_park_at_curb(car)
+		car.state = "idle"
+		car.idle_clock = 0.0
+		car.speed = 0.0
+		car.node.get_node("ServiceAudio").set_motion(0,"electric")
+		_branding(car,"AVAILABLE • "+str(ranks[int(car.rank)].name))
+		return
+	var offset: Vector3 = car.path[int(car.index)]-car.node.global_position
+	if offset.length()<0.05:
+		car.index = int(car.index)+1
+		return
+	var direction := offset.normalized()
+	car.node.set_meta("traffic_straight",game.city.traffic.path_is_straight(car.path,int(car.index),car.node.global_position,direction))
+	var travel: float = game.city.traffic.allowed_travel(car.node.global_position,direction,minf(8*delta,offset.length()),2.5,car.node)
+	car.node.global_position+=direction*travel
+	if travel>0.001: car.node.rotation.y = atan2(direction.x,direction.z)
+	car.speed = travel/maxf(delta,0.001)
+	car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
+	for wheel in car.node.get_meta("wheels",[]): wheel.rotation.x+=travel/0.36
+
+func _pickup_path(car: Dictionary, pickup: Vector3) -> PackedVector3Array:
+	var from: Vector3 = car.node.global_position
+	var facing: Vector3 = car.node.global_basis.z
+	var anchor := _road_anchor(from,facing)
+	var target_anchor := _road_anchor(pickup,facing)
+	var direction: Vector3 = anchor.direction
+	var offset: Vector3 = target_anchor.point-anchor.point
+	if car.state=="idle" and offset.cross(direction).length()<0.1 and offset.dot(direction)>=-3 and offset.dot(direction)<12:
+		var left := Vector3(direction.z,0,-direction.x)
+		for step in [0,-1,1,-2,2,-3,3,-4,4]:
+			var target: Vector3 = target_anchor.center+left*5.5+direction*float(step)
+			if (target-from).dot(direction)<-0.05 or target.distance_to(pickup)>6: continue
+			if game.city.traffic.space_clear(target,direction,car.node): return PackedVector3Array([from,target])
+	return path_between(from,pickup,facing)

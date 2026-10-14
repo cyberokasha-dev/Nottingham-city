@@ -110,8 +110,7 @@ func _ready() -> void:
 	properties.item_selected.connect(func(index):
 		if index>=0 and index<offers.size():
 			selected_house = offers[index]
-			game.city_map.destination = game.economy.houses[selected_house].entrance()
-			game.city_map.destination_active = true)
+			game.city_map.set_waypoint({"name":game.economy.houses[selected_house].address,"point":game.economy.houses[selected_house].entrance()}))
 	_button(housing,"Visit selected home • show walking destination",func():
 		if not offers.is_empty(): _navigate(game.economy.houses[offers[properties.selected]].entrance()))
 	_button(housing,"Book Aurora to selected home",func():
@@ -184,6 +183,22 @@ func _ready() -> void:
 	map_button.position = Vector2(680,20)
 	map_button.pressed.connect(func(): game.city_map.open())
 	add_child(map_button)
+	var hail_button := Button.new()
+	hail_button.text = "K • Aurora come to me"
+	hail_button.position = Vector2(780,20)
+	hail_button.pressed.connect(hail)
+	add_child(hail_button)
+
+func hail() -> void:
+	game.city_map.close()
+	panel.show()
+	tabs.current_tab = 0
+	var key: String = game.economy.key_for(game.player)
+	if game.cabs.bookings.has(key):
+		show_message("Your assigned Aurora is shown below and on the map.")
+		return
+	var booking: Dictionary = game.cabs.book(game.player,{},game.player.profile.name)
+	show_message("Aurora requested. Meet the numbered car at the safe road pickup; choose your destination after boarding." if not booking.is_empty() else game.economy.last_error)
 
 func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
 	var scroll := ScrollContainer.new()
@@ -254,8 +269,7 @@ func _quote() -> void:
 		cab_status.text = str(selected_location.name)+" • quoted fare "+game.economy.pounds(game.cabs.quote(game.player,selected_location.point))
 
 func _navigate(point: Vector3) -> void:
-	game.city_map.destination = point
-	game.city_map.destination_active = true
+	game.city_map.set_waypoint({"name":preload("res://town/districts.gd").street_at(point),"point":point})
 	panel.hide()
 	_release_focus()
 
@@ -313,6 +327,9 @@ func _process(delta: float) -> void:
 		update_display()
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_K:
+		hail()
+		get_viewport().set_input_as_handled()
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_P:
 		toggle()
 		get_viewport().set_input_as_handled()

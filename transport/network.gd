@@ -12,6 +12,7 @@ var buses: Array[Node3D] = []
 var stops: Array[Dictionary] = []
 var guide: PanelContainer
 var stop_refresh := 0.0
+var seeded := false
 
 func _ready() -> void:
 	for definition in preload("res://transport/routes.gd").definitions():
@@ -142,7 +143,7 @@ func _build_stop(stop: Dictionary, route: Dictionary) -> void:
 	var marking := G.label(self,"BUS\nSTOP",stop.position+Vector3(0,0.04,0),42)
 	marking.rotation = Vector3(-PI/2,atan2(stop.direction.x,stop.direction.z),0)
 	marking.modulate = Color("f3d96c")
-	for i in range(3):
+	for i in range(4+stops.size()%3):
 		var person := preload("res://transport/crowd_person.gd").new()
 		person.variant = stops.size()+i
 		person.set_meta("commuter_id","commuter/"+str(stops.size())+"/"+str(i))
@@ -171,10 +172,12 @@ func exchange(bus: Node3D, stop: Dictionary) -> void:
 			walk.tween_callback(func(): person.walking=false)
 			stop.waiting.append(person)
 			bus.manifest.erase(record)
+			person.show()
 	bus.passengers = bus.manifest.size()
+	bus.rebuild_cabin()
 
 func board_next(bus: Node3D) -> bool:
-	if economy==null or bus.stop_index<0 or bus.manifest.size()>=20 or bus.dwell_elapsed>=58:
+	if economy==null or bus.stop_index<0 or bus.manifest.size()>=19 or bus.dwell_elapsed>=58:
 		return false
 	var stop: Dictionary = bus.route.stops[bus.stop_index]
 	for person in stop.waiting.duplicate():
@@ -188,16 +191,16 @@ func board_next(bus: Node3D) -> bool:
 				continue
 		stop.waiting.erase(person)
 		person.walking = true
-		person.set_meta("bus_seat",bus.manifest.size())
+		var seat_index: int = bus.free_seat()
+		if seat_index<0: return false
+		person.set_meta("bus_seat",seat_index)
 		var walk := create_tween()
 		walk.tween_property(person,"global_position",bus.entrance(),1.0)
 		walk.tween_callback(func():
 			if is_instance_valid(person) and is_instance_valid(bus):
 				person.reparent(bus)
 				var seat: int = int(person.get_meta("bus_seat",0))
-				var row := int(seat/2.0)%5
-				var deck := 1.95 if seat<10 else 0.0
-				person.position = Vector3(-0.78 if seat%2==0 else 0.78,0.02+deck,-3.4+row*1.3)
+				person.position = bus.npc_seat(seat)
 				person.rotation.y = 0
 				person.scale = Vector3(0.92,0.94,0.92)
 				person.set_seated(true)
@@ -205,12 +208,39 @@ func board_next(bus: Node3D) -> bool:
 					leg.rotation.x = -PI/2
 				for arm in person.arms:
 					arm.rotation.x = -0.35
-				person.walking = false)
-		bus.manifest.append({"person":person,"destination":(bus.stop_index+1+int(person.variant)%3)%bus.route.stops.size()})
+				person.walking = false
+				bus.rebuild_cabin())
+		var ride_stops := mini(bus.route.stops.size()-1,3+int(person.variant)%5)
+		bus.manifest.append({"person":person,"seat":seat_index,"destination":(bus.stop_index+ride_stops)%bus.route.stops.size()})
 		bus.passengers = bus.manifest.size()
 		bus.dwell = minf(60.0-bus.dwell_elapsed,maxf(bus.dwell,2.0))
 		return true
 	return false
+
+func seed_services() -> void:
+	if seeded or economy==null: return
+	seeded = true
+	var saving: bool = economy.enabled
+	economy.enabled = false # One save after the initial paid passenger manifest is assembled.
+	for i in range(buses.size()):
+		var bus: Node3D = buses[i]
+		for seat in range(12+i%7):
+			var person := preload("res://transport/crowd_person.gd").new()
+			person.variant = i*19+seat
+			bus.add_child(person)
+			economy.register(person,"commuter/onboard/"+str(i)+"/"+str(seat),15000)
+			if not economy.charge(person,200,"Bus "+bus.route.number+" fare"):
+				person.free()
+				continue
+			person.set_meta("bus_seat",seat)
+			person.position = bus.npc_seat(seat)
+			person.scale = Vector3(0.92,0.94,0.92)
+			person.set_seated(true)
+			bus.manifest.append({"person":person,"seat":seat,"destination":(bus.next_stop+2+seat%5)%bus.route.stops.size()})
+		bus.passengers = bus.manifest.size()
+		bus.rebuild_cabin()
+	economy.enabled = saving
+	economy.save()
 
 func _process(delta: float) -> void:
 	elapsed += delta

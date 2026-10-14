@@ -81,6 +81,7 @@ func _ready() -> void:
 		collider.position.y = 0.9
 		collision_body.add_child(collider)
 		car.add_child(collision_body)
+		car.set_meta("traffic_straight",true)
 		add_child(car)
 		car.add_child(preload("res://simulation/service_audio.gd").new())
 		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"kind":kind,"speed":7.0+float(i%5)*1.4})
@@ -134,12 +135,7 @@ func _process(delta: float) -> void:
 		item.node.get_node("ServiceAudio").set_motion(travel/maxf(delta,0.001),"electric" if item.kind=="cybercab" else "engine")
 		distance += direction*travel
 		if distance>157.0 or distance< -157.0:
-			var wrapped := -157.0 if distance>157.0 else 157.0
-			var clear := true
-			for other in vehicle_nodes():
-				if other!=item.node and other.visible and other.global_position.distance_to(lane_position(item,wrapped))<9:
-					clear = false
-			distance = wrapped if clear else clampf(distance,-157,157)
+			distance = wrap_distance(item,distance)
 		item.distance = distance
 		for wheel in item.node.get_meta("wheels",[]):
 			wheel.rotation.x += travel/0.42*direction
@@ -315,13 +311,16 @@ func vehicle_nodes() -> Array[Node3D]:
 			if is_instance_valid(body): nodes.append(body)
 	return nodes
 
-func _junction_busy(center: Vector3, _heading: Vector3, ignore: Node3D) -> bool:
+func _junction_busy(center: Vector3, heading: Vector3, ignore: Node3D) -> bool:
 	# A vehicle commits when its centre passes the twelve-metre stop line.
 	# Keep the whole box exclusive until it clears. Right-turning buses can
 	# otherwise trap an opposing car halfway through their swept turn.
 	for node in vehicle_nodes():
 		if node==ignore or not node.visible: continue
 		if absf(node.global_position.x-center.x)<11.9 and absf(node.global_position.z-center.z)<11.9:
+			# Straight queues and opposite lanes can share green; turning paths stay exclusive.
+			if is_instance_valid(ignore) and ignore.get_meta("traffic_straight",false) and node.get_meta("traffic_straight",false) and absf(heading.dot(node.global_basis.z.normalized()))>0.97:
+				continue
 			return true
 	return false
 
@@ -366,3 +365,21 @@ func space_clear(pos: Vector3, direction: Vector3, ignore: Node3D) -> bool:
 			if absf(offset.dot(axis))>radius: separated=true; break
 		if not separated: return false
 	return true
+
+func path_is_straight(path: PackedVector3Array, index: int, position: Vector3, heading: Vector3) -> bool:
+	var previous := position
+	var length := 0.0
+	for i in range(index,path.size()):
+		var offset := path[i]-previous
+		if offset.length()>0.05 and heading.dot(offset.normalized())<0.97: return false
+		length+=offset.length()
+		previous = path[i]
+		if length>=27: return true
+	return true
+
+func wrap_distance(item: Dictionary, distance: float) -> float:
+	var wrapped := -157.0 if distance>157.0 else 157.0
+	var heading := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
+	# Adjacent opposing lanes are separate spaces. A radial test can trap both
+	# opposite-edge cars forever while they each wait for the other's spawn point.
+	return wrapped if space_clear(lane_position(item,wrapped),heading,item.node) else clampf(distance,-157,157)

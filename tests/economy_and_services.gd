@@ -68,12 +68,16 @@ func run():
     account.balance=200000
     var network=game.city.transport
     var bus=network.buses[0]
+    for record in bus.manifest: record.person.free()
+    bus.manifest.clear()
+    bus.rebuild_cabin()
     bus.arrive(1)
     bus.model.animate_doors(1)
     p.global_position=bus.entrance()
     var balance: int=account.balance
     if not check(bus.board(p) and int(account.balance)==balance-200,"Player pays £2 bus fare"): return
     if not check(not bus.board(p),"Duplicate boarding cannot charge again"): return
+    bus.rider_board_clock=3
     bus.leave(p)
     if not check(network.board_next(bus) and bus.manifest.size()==1,"An actual queued commuter pays and boards"): return
     if not check(network.reserve_departure("TEST")==network.elapsed and network.reserve_departure("TEST")==network.elapsed+90,"City terminus departures are separated by 90 seconds"): return

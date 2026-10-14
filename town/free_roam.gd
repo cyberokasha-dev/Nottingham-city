@@ -70,6 +70,7 @@ func _ready() -> void:
 	economy.game = self
 	add_child(economy)
 	city.transport.economy = economy
+	city.transport.seed_services()
 	cabs = preload("res://simulation/cabs.gd").new()
 	cabs.game = self
 	cabs.economy = economy

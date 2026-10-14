@@ -68,7 +68,7 @@ func run() -> void:
     rules.free()
     p.global_position=Vector3(47.7,traffic.LEVEL,35)
     var pickup=cabs.book(p,{"name":"Test","point":Vector3(147.7,traffic.LEVEL,-90)})
-    if not check(not pickup.is_empty() and pickup.car==0,"Dispatch picks the short legal pickup, not a nearer car requiring a loop"): return
+    if not check(not pickup.is_empty() and pickup.car<2,"Dispatch uses a nearby clear curb pickup instead of making a needless road loop"): return
     cabs.cancel(p)
     var parked=cabs.cars[0]
     var second=cabs.cars[2]
@@ -96,6 +96,7 @@ func run() -> void:
     if not check(not music.audio.playing,"Passenger can turn recitation off immediately"): return
     music.set_enabled(true)
     if not check(music.audio.playing,"Passenger can turn recitation on again"): return
+    bus.rider_board_clock=3
     if not check(bus.leave(p) and not music.audio.playing and music.audio.stream==null and not music.panel.visible,"Leaving stops and releases the recitation immediately"): return
     # No free mode when payment backend is absent.
     var saved=network.economy

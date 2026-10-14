@@ -198,6 +198,13 @@ func process_rents() -> void:
 
 func build_locations() -> void:
 	locations = [{"name":"Council Office","point":office}]
+	for district in game.city.districts:
+		var direction := Vector3(sin(float(district.heading)),0,cos(float(district.heading)))
+		locations.append({"name":"Aurora Rank • "+str(district.name),"point":district.rank+Vector3(direction.z,0,-direction.x)*2.2})
+	for i in range(game.city.ROAD_X.size()):
+		locations.append({"name":game.city.ATLAS.STREET_X[i],"point":Vector3(game.city.ROAD_X[i]+7.7,-5.02,-22)})
+	for i in range(game.city.ROAD_Z.size()):
+		locations.append({"name":game.city.ATLAS.STREET_Z[i],"point":Vector3(-18,-5.02,game.city.ROAD_Z[i]+7.7)})
 	for number in houses:
 		locations.append({"name":"House "+str(number)+" • "+houses[number].street,"point":houses[number].entrance()})
 	for stop in game.city.transport.stops:

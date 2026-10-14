@@ -117,6 +117,20 @@ jobs:
           godot --headless --path . --script res://tests/aurora_journeys.gd 2>&1 | tee /tmp/aurora-journeys.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/aurora-journeys.log; then exit 1; fi
           grep -q 'AURORA_JOURNEYS_OK' /tmp/aurora-journeys.log
+      - name: Check districts, walk-up and hailed cabs, full buses and green-light queues
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/district_transport.gd 2>&1 | tee /tmp/district-transport.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/district-transport.log; then exit 1; fi
+          grep -q 'DISTRICT_TRANSPORT_OK' /tmp/district-transport.log
+      - name: Check all twelve bus services keep progressing in a populated city
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --fixed-fps 30 --script res://tests/city_service_continuity.gd 2>&1 | tee /tmp/city-continuity.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-continuity.log; then exit 1; fi
+          grep -q 'CITY_SERVICE_CONTINUITY_OK' /tmp/city-continuity.log
       - name: Export browser game
         shell: bash
         run: |

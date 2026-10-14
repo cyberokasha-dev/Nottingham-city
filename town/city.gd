@@ -3,6 +3,8 @@ extends Node3D
 const GROUND_Y := -5.12
 const ROAD_X := [-140.0,-80.0,-40.0,40.0,80.0,140.0]
 const ROAD_Z := [-120.0,-60.0,16.0,80.0,140.0]
+const ATLAS = preload("res://town/districts.gd")
+var districts: Array[Dictionary] = ATLAS.definitions()
 var houses: Array[Node3D] = []
 var batches := {}
 var grass: StandardMaterial3D
@@ -153,8 +155,14 @@ func _neighbourhoods() -> void:
 				for side in [-1.0,1.0]:
 					var house := preload("res://town/house.gd").new()
 					house.name = "House"+str(number)
-					house.address = str(number)+" · "+["Mapperley Plains","Forest Road","Parliament Street","Carlton Road"][iz]
-					house.brick_color = colors[(number-1)%colors.size()]
+					var district: Dictionary = ATLAS.at(Vector3(cx,GROUND_Y,cz))
+					house.address = str(number)+" · "+ATLAS.STREET_Z[iz if row==0 else iz+1]
+					house.house_number = number
+					house.neighbourhood = district.name
+					house.architecture = district.styles[(number+row)%district.styles.size()]
+					house.variant = number
+					house.brick_color = district.brick.lightened(float(number%4)*0.035)
+					house.roof_color = district.roof
 					house.position = Vector3(cx+side*offset,GROUND_Y+0.065,ROAD_Z[iz]+19 if row==0 else ROAD_Z[iz+1]-19)
 					house.rotation.y = PI if row==0 else 0.0
 					add_child(house)
@@ -200,7 +208,7 @@ func _street_sign(pos: Vector3,ix: int,iz: int) -> void:
 	var metal := _material(Color("505e66"))
 	_stamp(pos+Vector3(0,1.4,0),Vector3(0.10,2.8,0.10),metal)
 	var label := Label3D.new()
-	label.text = ["Alfreton Road","Mansfield Road","Milton Street","Queen Street","Woodborough Road","Westdale Lane"][ix]+"\n"+["Mapperley Plains","Forest Road","Parliament Street","Upper Parliament Street","Carlton Road"][iz]
+	label.text = ATLAS.STREET_X[ix]+"\n"+ATLAS.STREET_Z[iz]
 	label.font_size = 24
 	label.pixel_size = 0.009
 	label.position = pos+Vector3(0,2.6,0)

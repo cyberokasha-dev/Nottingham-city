@@ -8,12 +8,17 @@ var phase := 0.0
 var walking := false
 var knees: Array[Node3D] = []
 var seated := false
+static var palette: Dictionary = {}
+
+static func paint(color: Color) -> Material:
+	if not palette.has(color): palette[color] = G.material(color)
+	return palette[color]
 
 func _ready() -> void:
-	var skin := G.material([Color("824e33"),Color("cf9b75"),Color("e0b795"),Color("533522")][variant%4])
-	var shirt := G.material([Color("317b99"),Color("9c5066"),Color("ccae55"),Color("5b8c68"),Color("e8ded0"),Color("555a91")][variant%6])
-	var pants := G.material(Color("293444"))
-	var hair := G.material(Color("262019"))
+	var skin := paint([Color("824e33"),Color("cf9b75"),Color("e0b795"),Color("533522")][variant%4])
+	var shirt := paint([Color("317b99"),Color("9c5066"),Color("ccae55"),Color("5b8c68"),Color("e8ded0"),Color("555a91")][variant%6])
+	var pants := paint(Color("293444"))
+	var hair := paint(Color("262019"))
 	var torso := Node3D.new()
 	add_child(torso)
 	G.sphere(torso,Vector3(0,1.16,0),Vector3(0.47,0.65,0.29),shirt)
@@ -43,6 +48,8 @@ func _ready() -> void:
 		G.sphere(arm,Vector3(side*0.04,-0.56,0.02),Vector3(0.1,0.13,0.09),skin)
 		G.merge(arm)
 		arms.append(arm)
+
+	for mesh in find_children("*","MeshInstance3D",true,false): mesh.visibility_range_end = 45.0
 
 func _process(delta: float) -> void:
 	if not walking:

@@ -1,5 +1,9 @@
 extends Node3D
 
+var architecture := "cottage"
+var neighbourhood := "City Centre"
+var variant := 0
+var roof_color := Color("34404b")
 var address := "Home"
 var house_number := 0
 var street := ""
@@ -17,7 +21,7 @@ func _ready() -> void:
 	add_to_group("enterable_houses")
 	var brick := _material(brick_color)
 	var stone := _material(Color("eee5d2"))
-	var slate := _material(Color("34404b"))
+	var slate := _material(roof_color)
 	var glass := _material(Color("456a83"), 0.3)
 	var floor_material := _material(Color("b69369"))
 	_box(self,Vector3(0,0,0),Vector3(10,0.12,12),floor_material,true)
@@ -62,7 +66,7 @@ func _ready() -> void:
 	door = Node3D.new()
 	door.position = Vector3(-0.88,0,6.02)
 	add_child(door)
-	_box(door,Vector3(0.88,1.25,0),Vector3(1.75,2.5,0.13),_material(Color("274943")),true)
+	_box(door,Vector3(0.88,1.25,0),Vector3(1.75,2.5,0.13),_material([Color("274943"),Color("2f4567"),Color("6e343c"),Color("d5b76f"),Color("373940")][variant%5]),true)
 	_box(door,Vector3(1.56,1.1,0.10),Vector3(0.08,0.10,0.09),_material(Color("c5a66b")))
 	_box(door,Vector3(0.88,1.9,0.09),Vector3(1.25,0.60,0.05),glass)
 	var number := Label3D.new()
@@ -76,12 +80,58 @@ func _ready() -> void:
 	rental_sign.pixel_size = 0.007
 	rental_sign.position = Vector3(3.3,1.0,7.2)
 	add_child(rental_sign)
+	_architectural_details(brick,stone,slate,glass)
 	var geometry = preload("res://transport/geometry.gd")
 	for section in [self,front,roof,door]:
 		geometry.merge(section)
 	# Interiors are instantiated only when needed; every house has its own entrance.
 	for mesh in find_children("*","MeshInstance3D",true,false):
 		mesh.visibility_range_end = 190.0
+
+func _architectural_details(brick: Material, stone: Material, slate: Material, glass: Material) -> void:
+	# Entrances and ground-floor collision bounds stay compatible with existing tenancies.
+	var upper := architecture in ["terrace","victorian","townhouse","semi"]
+	if upper:
+		roof.position.y = 2.9
+		for x in [-5.0,5.0]: _box(roof,Vector3(x,1.95,0),Vector3(0.25,2.9,12),brick)
+		_box(roof,Vector3(0,1.95,-6),Vector3(10,2.9,0.25),brick)
+		_box(roof,Vector3(0,1.95,6),Vector3(10,2.9,0.25),brick)
+		for x in [-3.0,0.0,3.0]:
+			_box(roof,Vector3(x,2.0,6.2),Vector3(1.65,1.75,0.12),stone)
+			_box(roof,Vector3(x,2.0,6.28),Vector3(1.43,1.5,0.04),glass)
+			_box(roof,Vector3(x,2.0,6.32),Vector3(0.065,1.5,0.03),stone)
+		_box(front,Vector3(0,3.25,6.2),Vector3(10.3,0.15,0.35),stone)
+	if architecture=="townhouse" or architecture=="modern":
+		# Replace pitched roof with a flat roof and raised parapet, not a colour swap.
+		for child in roof.get_children():
+			if child is MeshInstance3D and child.mesh is ArrayMesh: child.free()
+		_box(roof,Vector3(0,3.5,0),Vector3(10.5,0.22,12.5),slate)
+		for x in [-5.1,5.1]: _box(roof,Vector3(x,3.85,0),Vector3(0.22,0.6,12.4),brick)
+		for z in [-6.1,6.1]: _box(roof,Vector3(0,3.85,z),Vector3(10.4,0.6,0.22),brick)
+	if architecture=="villa" or architecture=="cottage":
+		var canopy := _box(front,Vector3(0,2.85,7.0),Vector3(3.2,0.16,1.7),slate)
+		canopy.rotation.z = 0.06 if architecture=="cottage" else 0.0
+		for x in [-1.4,1.4]: _box(front,Vector3(x,1.4,7.4),Vector3(0.13,2.8,0.13),stone)
+	if architecture=="victorian":
+		for x in [-3.0,3.0]:
+			_box(front,Vector3(x,0.85,6.55),Vector3(2.35,1.7,0.9),brick)
+			_box(front,Vector3(x,1.75,7.02),Vector3(2.05,1.2,0.06),glass)
+			_box(front,Vector3(x,2.46,6.55),Vector3(2.6,0.15,1.2),slate)
+	if architecture=="modern":
+		for x in [-2.4,0.0,2.4]:
+			var solar := _box(roof,Vector3(x,3.85,-1),Vector3(1.8,0.05,3),_material(Color("253c55"),0.4))
+			solar.rotation.x = 0.12
+		_box(front,Vector3(-4.9,1.75,6.2),Vector3(0.28,3.5,0.15),slate)
+	var garden := _material([Color("53724b"),Color("6a8454"),Color("49694f")][variant%3])
+	var flower := _material([Color("bf697c"),Color("e0ba69"),Color("bd9ed1")][variant%3])
+	for x in [-3.3,3.3]:
+		_box(front,Vector3(x,0.18,7.0),Vector3(2.0,0.3,0.55),stone)
+		_box(front,Vector3(x,0.38,7.0),Vector3(1.8,0.22,0.5),garden)
+		for dx in [-0.6,0.0,0.6]: _box(front,Vector3(x+dx,0.55,7.0),Vector3(0.2,0.15,0.2),flower)
+	if architecture=="semi" or architecture=="terrace":
+		for side in [-1.0,1.0]:
+			_box(front,Vector3(side*4.6,0.5,7.4),Vector3(0.18,1,1.8),brick)
+		_box(front,Vector3(0,2.84,6.45),Vector3(2.6,0.18,0.6),stone)
 
 func entrance() -> Vector3:
 	return to_global(Vector3(0,0.14,7.8))

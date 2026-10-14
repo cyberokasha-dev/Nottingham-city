@@ -42,7 +42,7 @@ func run_checks() -> void:
             var sample: Dictionary = network.sample(route,stop.distance)
             if not check(sample.position.distance_to(stop.position)<0.05,"Stops lie precisely on their continuous route"):
                 return
-            if not check(stop.waiting.size()==3 and stop.pavement.distance_to(stop.position)>4.0,"Waiting passengers stand on the pavement"):
+            if not check(stop.waiting.size()>=4 and stop.waiting.size()<=6 and stop.pavement.distance_to(stop.position)>4.0,"Waiting passengers stand on the pavement"):
                 return
     var bus = network.buses[0]
     # Isolate the bus to test rules without a queue obscuring red-light behaviour.
@@ -64,6 +64,7 @@ func run_checks() -> void:
     person.global_position = bus.entrance()
     if not check(bus.model.door_fraction>=0.9 and bus.board(person),"Doors open at a stop and player boards"):
         return
+    bus.rider_board_clock = 3
     bus.dwell = 0
     bus.advance(0.1)
     var before: float = bus.distance

@@ -165,7 +165,7 @@ func _physics_process(delta: float) -> void:
 			riding_service.skip_journey(self)
 		return
 	if is_instance_valid(riding_bus):
-		global_position = riding_bus.seat_position()
+		global_position = riding_bus.rider_position()
 		pivot.rotation = Vector3(pitch,yaw,0)
 		prompt.text = "BUS %s • %s\n%s" % [riding_bus.route.number,riding_bus.route.name,"E: get off" if riding_bus.state=="dwell" else ("Stop requested" if riding_bus.bell else "E: request next stop")]
 		if controlled and Input.is_action_just_pressed("interact"):
@@ -261,6 +261,13 @@ func _physics_process(delta: float) -> void:
 				party.game.phone.update_display()
 				party.game.phone.pin.grab_focus()
 				return
+			var parked_cab: int = party.game.cabs.nearest_available(self)
+			if parked_cab>=0:
+				var booking: Dictionary = party.game.cabs.walk_up(self,parked_cab)
+				party.game.phone.panel.show()
+				party.game.phone.tabs.current_tab = 0
+				party.game.phone.show_message("Cab reserved. Stand in its green circle and enter your code." if not booking.is_empty() else party.game.economy.last_error)
+				return
 			var furniture := nearest_furniture()
 			var person := nearest_person()
 			var house := nearest_house()
@@ -347,6 +354,8 @@ func _physics_process(delta: float) -> void:
 		var city_target := nearest_city_activity()
 		if is_instance_valid(party.game.cabs) and party.game.cabs.is_pickup_near(self):
 			prompt.text += "\nE: enter your Aurora boarding code"
+		elif party.game.cabs.nearest_available(self)>=0:
+			prompt.text += "\nE: reserve this parked Aurora · K: request a pickup"
 		elif is_instance_valid(city_target):
 			prompt.text += "\nE: " + ("board route "+city_target.route.number if city_target.is_in_group("city_buses") else city_target.nearest(self).title)
 		elif furniture != "":

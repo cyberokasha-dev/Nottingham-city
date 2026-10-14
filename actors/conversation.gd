@@ -137,8 +137,7 @@ func apply_effect(effect: String) -> void:
 				target.follow_actor = player
 				target.follow_time = 20
 		"directions":
-			game.city_map.destination = game.population.places[2].point
-			game.city_map.destination_active = true
+			game.city_map.set_waypoint(game.population.places[2])
 			player._notify("East park marked in blue on the map.")
 		"threat":
 			target.relationship = maxi(-3,target.relationship-2)

@@ -20,6 +20,10 @@ var dwell_elapsed := 0.0
 var boarding_clock := 0.0
 var next_departure := 0.0
 var step_clock := 0.0
+var rider_board_clock := 3.0
+var rider_start := Vector3.ZERO
+var cabin: Node3D
+var loading: Label3D
 
 func _ready() -> void:
 	add_to_group("city_buses")
@@ -42,6 +46,11 @@ func _ready() -> void:
 	collider.add_child(shape)
 	add_child(collider)
 	passengers = 0
+	loading = G.label(model,"£2 • PUBLIC SERVICE",Vector3(0,2.2,5.17),17)
+	loading.pixel_size = 0.004
+	cabin = Node3D.new()
+	cabin.name = "CabinPassengers"
+	add_child(cabin)
 	add_child(preload("res://simulation/service_audio.gd").new())
 	_update_position()
 	find_next_stop()
@@ -60,6 +69,11 @@ func _physics_process(delta: float) -> void:
 		step_clock = 0.0
 
 func advance(delta: float) -> void:
+	if is_instance_valid(rider):
+		rider_board_clock = minf(3.0,rider_board_clock+delta)
+		rider.global_position = rider_position()
+		rider._play_clip("walk" if rider_board_clock<2.5 else "seated")
+		rider.visual.global_rotation.y = rotation.y+PI
 	get_node("ServiceAudio").set_motion(speed,"bus" if visible else "silent")
 	if state=="depot":
 		speed = 0
@@ -77,7 +91,7 @@ func advance(delta: float) -> void:
 			boarding_clock = 0
 			manager.board_next(self)
 		model.animate_doors(move_toward(model.door_fraction,1.0,delta*1.6))
-		if dwell <= 0:
+		if dwell <= 0 and rider_board_clock>=3:
 			state = "closing"
 	elif state == "closing":
 		speed = 0
@@ -93,6 +107,10 @@ func advance(delta: float) -> void:
 	else:
 		var remaining: float = fposmod(float(route.stops[next_stop].distance)-distance,float(route.length))
 		var direction := global_basis.z.normalized()
+		var straight := true
+		for look in [3.0,9.0,18.0,27.0]:
+			if direction.dot(manager.sample(route,distance+look).direction)<0.97: straight=false
+		set_meta("traffic_straight",straight)
 		var allowed: float = manager.traffic.allowed_travel(global_position,direction,10.0*delta,6.5,self)
 		# Brake smoothly, then clamp precisely to the stop. Never skip on a long frame.
 		var target_speed := minf(10.0,sqrt(maxf(0,remaining)*3.0))
@@ -107,7 +125,7 @@ func advance(delta: float) -> void:
 		if remaining-travel <= 0.04:
 			arrive(next_stop)
 	if is_instance_valid(rider):
-		rider.global_position = seat_position()
+		rider.global_position = rider_position()
 
 func _update_position() -> void:
 	var sample: Dictionary = manager.sample(route,distance)
@@ -137,10 +155,10 @@ func entrance() -> Vector3:
 	return to_global(Vector3(1.7,0,3.5))
 
 func seat_position() -> Vector3:
-	return to_global(Vector3(0.68,2.9,0.5))
+	return to_global(Vector3(0.78,0.34,1.8))
 
 func board(person: CharacterBody3D) -> bool:
-	if state != "dwell" or model.door_fraction < 0.9 or is_instance_valid(rider) or person.global_position.distance_to(entrance()) > 4.0:
+	if state != "dwell" or model.door_fraction < 0.9 or is_instance_valid(rider) or person.global_position.distance_to(entrance()) > 4.0 or dwell_elapsed>56:
 		return false
 	if person.get("riding_service")!=null or person.riding_bus!=null or person.dead or person.driving or person.transitioning or person.resting != "" or is_instance_valid(person.active_house):
 		return false
@@ -151,25 +169,78 @@ func board(person: CharacterBody3D) -> bool:
 		person._notify("Bus fare £2.00 — not enough money")
 		return false
 	rider = person
+	loading.text = "%d/20 ABOARD • £2" % (manifest.size()+1)
 	person.riding_bus = self
 	person.velocity = Vector3.ZERO
 	person.collider.set_deferred("disabled",true)
-	person.visual.visible = false
-	person.global_position = seat_position()
+	person.visual.show()
+	rider_start = person.global_position
+	rider_board_clock = 0
+	dwell = minf(60-dwell_elapsed,maxf(dwell,3.5))
+	person.foot_arm.add_excluded_object(collider.get_rid())
 	person._notify("Route "+route.number+" • "+route.name+" • £2 fare paid — E: request stop · U: Quran on/off")
 	if is_instance_valid(manager.recitation): manager.recitation.update_rider()
 	return true
 
 func leave(person: CharacterBody3D) -> bool:
-	if person != rider or state != "dwell" or model.door_fraction < 0.9:
+	if person != rider or state != "dwell" or model.door_fraction < 0.9 or rider_board_clock<3:
 		bell = true
 		return false
 	person.global_position = route.stops[stop_index].pavement+Vector3(0,0.1,0)
 	person.velocity = Vector3.ZERO
 	person.riding_bus = null
 	person.visual.visible = true
+	person._play_clip("idle")
+	person.foot_arm.remove_excluded_object(collider.get_rid())
 	person.collider.set_deferred("disabled",false)
 	person.invulnerability = 1.0
 	rider = null
+	loading.text = "%d/20 ABOARD • £2" % manifest.size()
 	if is_instance_valid(manager.recitation): manager.recitation.update_rider()
 	return true
+
+func rider_position() -> Vector3:
+	if rider_board_clock>=3: return seat_position()
+	var door := entrance()+Vector3(0,0.18,0)
+	var aisle := to_global(Vector3(0.5,0.34,3.1))
+	if rider_board_clock<1: return rider_start.lerp(door,rider_board_clock)
+	if rider_board_clock<2: return door.lerp(aisle,rider_board_clock-1)
+	return aisle.lerp(seat_position(),rider_board_clock-2)
+
+func npc_seat(index: int) -> Vector3:
+	var row := int(index/2.0)%5
+	var deck := 1.95 if index<10 else 0.0
+	return Vector3(-0.78 if index%2==0 else 0.78,0.02+deck,-3.4+row*1.3)
+
+func free_seat() -> int:
+	for index in range(19): # Seat 19 stays available for the playable character.
+		var used := false
+		for record in manifest:
+			if int(record.get("seat",record.person.get_meta("bus_seat",-1)))==index: used=true; break
+		if not used: return index
+	return -1
+
+func rebuild_cabin() -> void:
+	if not is_instance_valid(cabin): return
+	for child in cabin.get_children(): child.free()
+	var groups := {}
+	for record in manifest:
+		var person: Node3D = record.person
+		if person.get_parent()!=self or person.walking: continue
+		for mesh in person.find_children("*","MeshInstance3D",true,false):
+			var material: Material = mesh.material_override
+			var key: int = material.get_instance_id()
+			if not groups.has(key):
+				var tool := SurfaceTool.new()
+				tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+				groups[key] = {"tool":tool,"material":material}
+			for surface in range(mesh.mesh.get_surface_count()):
+				groups[key].tool.append_from(mesh.mesh,surface,global_transform.affine_inverse()*mesh.global_transform)
+		person.hide()
+	for group in groups.values():
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = group.tool.commit()
+		mesh.material_override = group.material
+		mesh.visibility_range_end = 65
+		cabin.add_child(mesh)
+	loading.text = "%d/20 ABOARD • £2" % (manifest.size()+int(is_instance_valid(rider)))
