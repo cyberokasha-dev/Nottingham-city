@@ -13,12 +13,12 @@ func _ready() -> void:
 	engine = AudioStreamPlayer3D.new()
 	engine.max_distance = 38
 	engine.unit_size = 7
-	engine.volume_db = -18
+	engine.volume_db = -12
 	add_child(engine)
 	effect_player = AudioStreamPlayer3D.new()
 	effect_player.max_distance = 30
 	effect_player.unit_size = 6
-	effect_player.volume_db = -8
+	effect_player.volume_db = -2
 	add_child(effect_player)
 
 func _process(delta: float) -> void:
@@ -43,7 +43,7 @@ func set_motion(speed: float, kind := "engine") -> void:
 		engine.stream = loops[kind]
 		last_kind = kind
 	engine.pitch_scale = clampf(0.7+speed/14.0,0.7,1.8)
-	engine.volume_db = -22 if kind=="electric" else -18
+	engine.volume_db = -16 if kind=="electric" else -12
 	if not engine.playing: engine.play()
 
 func effect(kind: String) -> void:

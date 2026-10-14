@@ -138,7 +138,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		yaw -= event.relative.x * 0.005
 		pitch = clampf(pitch - event.relative.y * 0.005, -1.15, -0.75) if is_instance_valid(active_house) else clampf(pitch - event.relative.y * 0.005, -1.0, 0.3)
 
+func receive_vehicle_hit(direction: Vector3, speed: float) -> void:
+	preload("res://simulation/road_impact.gd").hit(self,direction,speed)
+
 func _physics_process(delta: float) -> void:
+	if preload("res://simulation/road_impact.gd").tick(self,delta): return
 	message_time = maxf(0.0, message_time - delta)
 	camera_manual = maxf(0,camera_manual-delta)
 	if controlled and Input.is_action_just_pressed("cycle_camera") and not driving and not _phone_open():
@@ -154,9 +158,9 @@ func _physics_process(delta: float) -> void:
 				yaw -= look.x * delta * 2.2
 				pitch = clampf(pitch-look.y*delta*1.5,-1.15,-0.75) if is_instance_valid(active_house) else clampf(pitch-look.y*delta*1.5,-1.0,0.3)
 	if is_instance_valid(riding_service):
-		global_position = riding_service.seat_position(self)
+		global_position = riding_service.rider_position(self)
 		pivot.rotation = Vector3(pitch,yaw,0)
-		prompt.text = "AURORA • Autonomous journey\nJ: skip journey · P: talk to Aurora · B: camera"
+		prompt.text = "AURORA • P: choose destination / talk · B: camera\nJ: skip a confirmed journey"
 		if controlled and not _phone_open() and Input.is_physical_key_pressed(KEY_J):
 			riding_service.skip_journey(self)
 		return
@@ -220,7 +224,7 @@ func _physics_process(delta: float) -> void:
 		if folded_arms:
 			dialogue.event("fold")
 		_notify("Arms folded — H to relax" if folded_arms else "Arms relaxed")
-	if is_instance_valid(party.game.phone) and party.game.phone.panel.visible:
+	if is_instance_valid(party.game.phone) and (party.game.phone.panel.visible or party.game.city_map.expanded):
 		velocity.x = 0
 		velocity.z = 0
 		if not is_on_floor():
@@ -253,6 +257,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			if is_instance_valid(party.game.cabs) and party.game.cabs.is_pickup_near(self):
 				party.game.phone.panel.show()
+				party.game.phone.tabs.current_tab = 0
+				party.game.phone.update_display()
 				party.game.phone.pin.grab_focus()
 				return
 			var furniture := nearest_furniture()
@@ -705,7 +711,7 @@ func nearest_city_activity() -> Node3D:
 	return null
 
 func _phone_open() -> bool:
-	return is_instance_valid(party) and is_instance_valid(party.game.phone) and party.game.phone.panel.visible
+	return is_instance_valid(party) and is_instance_valid(party.game.phone) and (party.game.phone.panel.visible or party.game.city_map.expanded)
 
 func cycle_view() -> void:
 	if driving and is_instance_valid(vehicle):

@@ -110,6 +110,13 @@ jobs:
           godot --headless --path . --fixed-fps 30 --script res://tests/live_service_flow.gd 2>&1 | tee /tmp/live-service.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/live-service.log; then exit 1; fi
           grep -q 'LIVE_SERVICE_FLOW_OK' /tmp/live-service.log
+      - name: Check named Aurora, destination-later boarding, route map and impact recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/aurora_journeys.gd 2>&1 | tee /tmp/aurora-journeys.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/aurora-journeys.log; then exit 1; fi
+          grep -q 'AURORA_JOURNEYS_OK' /tmp/aurora-journeys.log
       - name: Export browser game
         shell: bash
         run: |

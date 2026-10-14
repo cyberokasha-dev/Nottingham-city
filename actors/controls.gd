@@ -1,5 +1,6 @@
 extends CanvasLayer
 ## Keyboard, touch and standardized gamepad actions use the same InputMap.
+var panel: PanelContainer
 var status: Label
 var health_bar: ProgressBar
 var health_style: StyleBoxFlat
@@ -54,8 +55,8 @@ func _ready() -> void:
 	injury_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	injury_overlay.color = Color(0.65,0.03,0.03,0)
 	add_child(injury_overlay)
-	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	panel = PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	panel.position = Vector2(20,-166)
 	add_child(panel)
 	var rows := VBoxContainer.new()
@@ -72,7 +73,7 @@ func _ready() -> void:
 	health_bar.max_value = 100
 	health_bar.show_percentage = true
 	rows.add_child(health_bar)
-	var row := HBoxContainer.new()
+	var row := HFlowContainer.new()
 	rows.add_child(row)
 	var layout := [["E · Use","interact",Color("7ee0b1")],["F · Punch","punch",Color("eda5df")],["Space · Jump","jump",Color("8bbaff")],["G · Stand / Wake","cancel_action",Color("f59a98")],["Q · Guard","guard",Color.WHITE],["R · Heavy","heavy_punch",Color.WHITE],["H · Fold arms","fold_arms",Color.WHITE]]
 	for item in layout:
@@ -91,6 +92,7 @@ func _ready() -> void:
 	var hint := Label.new()
 	hint.text = "WASD: move · Shift: run · Z: focus · F: punch · right mouse: look · B: camera · C: characters · H: fold arms"
 	hint.add_theme_font_size_override("font_size",13)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rows.add_child(hint)
 	var sound := CheckButton.new()
 	voice_toggle = sound
@@ -111,6 +113,10 @@ func _ready() -> void:
 	rows.add_child(sound)
 
 func _process(_delta: float) -> void:
+	var viewport := get_viewport().get_visible_rect().size
+	var left := 290.0 if viewport.x>=900 else 20.0
+	panel.size.x = maxf(440,viewport.x-left-20)
+	panel.position = Vector2(left,viewport.y-panel.size.y-20)
 	if is_instance_valid(player):
 		if is_instance_valid(player.party):
 			voice_toggle.set_pressed_no_signal(player.party.voices_enabled)

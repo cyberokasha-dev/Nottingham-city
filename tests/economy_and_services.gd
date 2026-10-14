@@ -93,7 +93,7 @@ func run():
         cabs._physics_process(0.1)
         if trip.state=="waiting": break
     if not check(trip.state=="waiting","Aurora reaches the pickup along roads"): return
-    p.global_position=trip.pickup_curb+Vector3(1,0,0)
+    p.global_position=game.cabs.boarding_point(p)
     balance=account.balance
     if not check(not cabs.unlock(p,"wrong") and int(account.balance)==balance,"Wrong boarding PIN cannot charge or unlock"): return
     if not check(cabs.unlock(p,trip.pin) and int(account.balance)==balance-int(trip.fare),"Correct PIN charges the quoted fare once"): return

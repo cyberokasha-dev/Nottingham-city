@@ -116,9 +116,13 @@ func begin_conversation(friend: CharacterBody3D) -> void:
 	talk_to(friend)
 	friend.talk_to(self,3.4)
 
+func receive_vehicle_hit(direction: Vector3, speed: float) -> void:
+	preload("res://simulation/road_impact.gd").hit(self,direction,speed)
+
 func _physics_process(delta: float) -> void:
+	if preload("res://simulation/road_impact.gd").tick(self,delta): return
 	if is_instance_valid(riding_service):
-		global_position = riding_service.seat_position(self)
+		global_position = riding_service.rider_position(self)
 		return
 	if get_meta("cab_waiting",false) and is_instance_valid(manager.get_parent().get_parent().cabs):
 		var cabs: Node3D = manager.get_parent().get_parent().cabs
@@ -127,7 +131,7 @@ func _physics_process(delta: float) -> void:
 			var booking: Dictionary = cabs.bookings[key]
 			var target: Vector3 = booking.pickup_wait
 			if booking.state=="waiting":
-				target = cabs.cars[int(booking.car)].node.to_global(Vector3(1.7,0,0))
+				target = cabs.boarding_point(self)
 			var direction: Vector3 = target-global_position
 			if direction.length()>1.0:
 				_move(direction.normalized(),delta,2.0)

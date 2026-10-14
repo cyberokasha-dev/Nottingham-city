@@ -298,6 +298,19 @@ func hold_fare(person: Node, amount: int) -> bool:
 	save()
 	return true
 
+func resize_fare(person: Node, amount: int) -> bool:
+	var key := key_for(person)
+	if not data.receipts.has(key) or amount<300: return false
+	var difference := amount-int(data.receipts[key].amount)
+	if cash(person)<difference:
+		last_error = "Not enough money for that destination. Choose a shorter journey."
+		return false
+	account_for(person).balance = cash(person)-difference
+	data.receipts[key].amount = amount
+	if difference!=0: record(key,-difference,"Aurora destination fare adjustment")
+	save()
+	return true
+
 func complete_fare(person: Node) -> void:
 	var key := key_for(person)
 	if data.receipts.has(key):

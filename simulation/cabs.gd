@@ -15,24 +15,18 @@ var last_notice := {}
 func _ready() -> void:
 	_build_lane_graph()
 	for i in range(6):
-		var model := F.traffic_visual("cybercab",Color("b99b58"))
+		var model := Node3D.new()
 		model.name = "Aurora"+str(i+1)
 		add_child(model)
 		model.position = Vector3(45.5,game.city.traffic.LEVEL,30+i*7)
-		var label := preload("res://transport/geometry.gd").label(model,"AURORA • "+str(i+1)+"\nAUTONOMOUS",Vector3(0,1.75,0),22)
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		var doors: Array[Node3D] = []
-		var G = preload("res://transport/geometry.gd")
-		for side in [-1.0,1.0]:
-			var door := Node3D.new()
-			door.position = Vector3(side*0.78,1.05,0.7)
-			door.set_meta("side",side)
-			model.add_child(door)
-			G.box(door,Vector3(side*0.05,-0.43,-0.7),Vector3(0.06,0.34,1.55),G.material(Color("b99b58"),0.65))
-			G.box(door,Vector3(0,-0.1,-0.7),Vector3(0.045,0.35,1.3),G.material(Color("21384a"),0.5))
-			G.merge(door)
-			doors.append(door)
-		model.set_meta("doors",doors)
+		var graphics := preload("res://vehicles/aurora_model.gd").make(i+1)
+		model.add_child(graphics)
+		graphics.set_as_top_level(true)
+		graphics.global_transform = model.global_transform
+		for property in ["wheels","doors","displays","label","marker"]:
+			model.set_meta(property,graphics.get_meta(property))
+		model.set_meta("graphics",graphics)
+		var label: Label3D = graphics.get_meta("label")
 		game.city.traffic.autonomous_nodes.append(model)
 		model.add_child(preload("res://simulation/service_audio.gd").new())
 		var conversation := preload("res://simulation/cab_dialogue.gd").new()
@@ -48,7 +42,7 @@ func _ready() -> void:
 		shape.position.y = 0.9
 		body.add_child(shape)
 		model.add_child(body)
-		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label})
+		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label,"cab_id":"AR-%03d" % (i+1)})
 
 func curb(point: Vector3) -> Vector3:
 	var best := Vector3.ZERO
@@ -195,7 +189,7 @@ func quote(person: Node3D, destination: Vector3) -> int:
 		length += path[i-1].distance_to(path[i])
 	return 300+int(ceil(length*3.0))
 
-func book(person: Node3D, destination: Dictionary) -> Dictionary:
+func book(person: Node3D, destination: Dictionary = {}, passenger_name: String = "") -> Dictionary:
 	var key: String = economy.key_for(person)
 	_reconcile(person)
 	if key=="":
@@ -210,13 +204,16 @@ func book(person: Node3D, destination: Dictionary) -> Dictionary:
 	if person.get("dead")==true or person.get("transitioning")==true or person.get("resting")!="" or is_instance_valid(person.get("active_house")) or is_instance_valid(person.get("current_house")):
 		economy.last_error = "Stand outside, awake and on foot to meet your cab"
 		return {}
-	var fare := quote(person,destination.point)
+	var fare := quote(person,destination.point) if destination.has("point") else 300
+	passenger_name = passenger_name.strip_edges().replace("\n"," ").replace("\r"," ").left(28)
+	if passenger_name=="":
+		passenger_name = str(person.profile.name) if person.get("profile")!=null else str(person.get("person_name"))
 	if economy.cash(person)<fare:
 		economy.last_error = "Not enough money for this journey"
 		return {}
 	last_notice.erase(key)
 	serial += 1
-	var trip := {"id":serial,"person":person,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":"%02d" % randi_range(0,99),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0,"created":elapsed,"last_progress":elapsed,"retries":0}
+	var trip := {"id":serial,"person":person,"passenger_name":passenger_name,"destination":destination.duplicate(),"pickup":person.global_position,"fare":fare,"pin":"%02d" % randi_range(0,99),"state":"queued","car":-1,"wait":0.0,"attempts":0,"locked_until":0.0,"created":elapsed,"last_progress":elapsed,"retries":0}
 	bookings[key] = trip
 	person.set_meta("last_cab_booking",elapsed)
 	_dispatch()
@@ -252,7 +249,7 @@ func _dispatch() -> void:
 		trip.car = selected
 		trip.state = "approaching"
 		trip.last_progress = elapsed
-		car.label.text = "AURORA • ON THE WAY"
+		_branding(car,trip.passenger_name+" • PICKUP")
 		trip.pickup_curb = car.path[-1]
 		var approach: Vector3 = (car.path[-1]-car.path[-2]).normalized() if car.path.size()>1 else car.node.global_basis.z
 		trip.pickup_wait = trip.pickup_curb+Vector3(approach.z,0,-approach.x)*4.7
@@ -262,7 +259,7 @@ func unlock(person: Node3D, pin: String) -> bool:
 	if not bookings.has(key):
 		return false
 	var trip: Dictionary = bookings[key]
-	if trip.state!="waiting" or person.global_position.distance_to(trip.pickup_curb)>4 or elapsed<float(trip.locked_until):
+	if trip.state!="waiting" or person.global_position.distance_to(boarding_point(person))>1.35 or elapsed<float(trip.locked_until):
 		return false
 	if pin!=trip.pin:
 		trip.attempts = int(trip.attempts)+1
@@ -271,16 +268,18 @@ func unlock(person: Node3D, pin: String) -> bool:
 			trip.attempts = 0
 		return false
 	var car: Dictionary = cars[int(trip.car)]
-	var journey_path := path_between(car.node.global_position,trip.destination.point,car.node.global_basis.z)
-	if journey_path.is_empty():
+	var journey_path := path_between(car.node.global_position,trip.destination.point,car.node.global_basis.z) if trip.destination.has("point") else PackedVector3Array()
+	if trip.destination.has("point") and journey_path.is_empty():
 		economy.last_error = "This destination has no reachable road entrance. Choose another destination."
 		return false
 	if not economy.hold_fare(person,int(trip.fare)):
 		cancel(person)
 		return false
-	trip.state = "riding"
 	car.state = "boarding"
 	car.board_clock = 0.0
+	car.board_start = person.global_position
+	_branding(car,trip.passenger_name+" • ON BOARD")
+	car.node.get_meta("marker").hide()
 	trip.state = "boarding"
 	car.path = journey_path
 	car.index = 0
@@ -290,14 +289,14 @@ func unlock(person: Node3D, pin: String) -> bool:
 	car.node.get_node("ServiceAudio").effect("door")
 	person.set_meta("cab_reply","")
 	car.node.get_node("CabDialogue").say(person,"welcome")
-	person.visual.hide()
+	person.visual.show()
 	person.collider.set_deferred("disabled",true)
 	person.velocity = Vector3.ZERO
 	return true
 
 func cancel(person: Node3D) -> bool:
 	var key: String = economy.key_for(person)
-	if not bookings.has(key) or bookings[key].state in ["riding","boarding"]:
+	if not bookings.has(key) or bookings[key].state in ["riding","boarding","awaiting_destination"]:
 		return false
 	var trip: Dictionary = bookings[key]
 	if int(trip.car)>=0:
@@ -307,13 +306,108 @@ func cancel(person: Node3D) -> bool:
 		cars[int(trip.car)].state = "idle"
 		cars[int(trip.car)].booking = ""
 		cars[int(trip.car)].speed = 0.0
-		cars[int(trip.car)].label.text = "AURORA • AVAILABLE"
+		_branding(car,"AVAILABLE")
+		car.node.get_meta("marker").hide()
 	bookings.erase(key)
 	person.set_meta("cab_waiting",false)
 	return true
 
+func boarding_point(person: Node3D) -> Vector3:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or int(bookings[key].car)<0: return person.global_position
+	return cars[int(bookings[key].car)].node.to_global(Vector3(2.05,0.05,0))
+
+func leave_waiting(person: Node3D) -> bool:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or bookings[key].state!="awaiting_destination": return false
+	var car: Dictionary = cars[int(bookings[key].car)]
+	person.riding_service = null
+	person.global_position = boarding_point(person)
+	person.visual.show()
+	person.collider.set_deferred("disabled",false)
+	_pose(person,"idle",car)
+	_release_orphan(key) # Refund the held boarding payment for an unused journey.
+	return true
+
 func seat_position(person: Node3D) -> Vector3:
-	return cars[int(person.get_meta("cab_car"))].node.to_global(Vector3(0.4,0.8,-0.4))
+	var model: Node3D = cars[int(person.get_meta("cab_car"))].node.get_meta("graphics")
+	return model.to_global(Vector3(0.4,0.04,-0.35))
+
+func rider_position(person: Node3D) -> Vector3:
+	var car: Dictionary = cars[int(person.get_meta("cab_car"))]
+	if car.state!="boarding": return seat_position(person)
+	var t := float(car.board_clock)
+	var door: Vector3 = car.node.to_global(Vector3(1.05,0.05,0))
+	if t<0.6: return car.board_start
+	if t<1.4: return car.board_start.lerp(door,(t-0.6)/0.8)
+	return door.lerp(seat_position(person),clampf((t-1.4)/0.8,0,1))
+
+func _pose(person: Node3D, clip: String, car: Dictionary) -> void:
+	if person.has_method("_play_clip"): person._play_clip(clip)
+	else: person.visual.play(clip)
+	person.visual.global_rotation.y = car.node.global_rotation.y+PI
+
+func _branding(car: Dictionary, text: String) -> void:
+	for display in car.node.get_meta("displays",[]):
+		display.text = car.cab_id+" • "+text
+
+func choose_destination(person: Node3D, destination: Dictionary) -> bool:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or not destination.has("point"):
+		economy.last_error = "Choose a place on the map or in the destination list."
+		return false
+	var trip: Dictionary = bookings[key]
+	if trip.state=="riding":
+		economy.last_error = "This journey is already moving to your confirmed destination."
+		return false
+	var start: Vector3 = trip.pickup
+	var facing := Vector3.ZERO
+	if trip.state in ["boarding","awaiting_destination"]:
+		start = cars[int(trip.car)].node.global_position
+		facing = cars[int(trip.car)].node.global_basis.z
+	var path := path_between(start,destination.point,facing)
+	if path.is_empty() or start.distance_to(destination.point)<8:
+		economy.last_error = "Choose a reachable destination at least 8 metres away."
+		return false
+	var fare := quote(person,destination.point) if trip.state not in ["boarding","awaiting_destination"] else _path_fare(path)
+	if trip.state in ["boarding","awaiting_destination"]:
+		if not economy.resize_fare(person,fare): return false
+	elif economy.cash(person)<fare:
+		economy.last_error = "Not enough money for this journey."
+		return false
+	trip.destination = destination.duplicate()
+	trip.fare = fare
+	if trip.state in ["boarding","awaiting_destination"]:
+		var car: Dictionary = cars[int(trip.car)]
+		car.path = path
+		car.index = 0
+		if trip.state=="awaiting_destination":
+			car.state = "dropoff"
+			trip.state = "riding"
+	return true
+
+func _path_fare(path: PackedVector3Array) -> int:
+	var length := 0.0
+	for i in range(1,path.size()): length+=path[i-1].distance_to(path[i])
+	return 300+int(ceil(length*3))
+
+func remaining_route(person: Node3D) -> PackedVector3Array:
+	var key: String = economy.key_for(person)
+	if not bookings.has(key) or int(bookings[key].car)<0: return PackedVector3Array()
+	var car: Dictionary = cars[int(bookings[key].car)]
+	if car.state not in ["pickup","dropoff"]: return PackedVector3Array()
+	var path := PackedVector3Array([car.node.global_position])
+	for i in range(int(car.index),car.path.size()): path.append(car.path[i])
+	return path
+
+func _process(delta: float) -> void:
+	for car in cars:
+		var graphics: Node3D = car.node.get_meta("graphics")
+		if graphics.global_position.distance_to(car.node.global_position)>8:
+			graphics.global_transform = car.node.global_transform
+		else:
+			graphics.global_position = graphics.global_position.lerp(car.node.global_position,1-exp(-18*delta))
+			graphics.quaternion = graphics.quaternion.slerp(car.node.quaternion,1-exp(-12*delta))
 
 func _physics_process(delta: float) -> void:
 	update_clock += delta
@@ -330,7 +424,7 @@ func _physics_process(delta: float) -> void:
 			_expire(trip,"All Auroras are busy. No fare taken. Please rebook.")
 	_dispatch()
 	for car in cars:
-		if car.state in ["idle","waiting","boarding"]:
+		if car.state in ["idle","waiting","boarding","awaiting_destination"]:
 			car.node.get_node("ServiceAudio").set_motion(0,"electric")
 		if car.state=="idle":
 			_doors(car,0.0)
@@ -344,14 +438,18 @@ func _physics_process(delta: float) -> void:
 		if car.state=="boarding":
 			car.board_clock = float(car.board_clock)+delta
 			_doors(car,clampf(float(car.board_clock),0,1) if float(car.board_clock)<2 else maxf(0,3.0-float(car.board_clock)))
-			person.global_position = seat_position(person)
+			person.global_position = rider_position(person)
+			_pose(person,"walk" if float(car.board_clock)<2.2 else "seated",car)
 			if float(car.board_clock)>=3:
-				car.state = "dropoff"
-				trip.state = "riding"
+				car.state = "dropoff" if trip.destination.has("point") else "awaiting_destination"
+				trip.state = "riding" if trip.destination.has("point") else "awaiting_destination"
+			continue
+		if car.state=="awaiting_destination":
+			_pose(person,"seated",car)
 			continue
 		if car.state=="waiting":
 			trip.wait = float(trip.wait)+delta
-			if person.get_meta("cab_waiting",false) and person.global_position.distance_to(trip.pickup_curb)<4:
+			if person.get_meta("cab_waiting",false) and person.global_position.distance_to(boarding_point(person))<1.35:
 				unlock(person,trip.pin)
 			elif float(trip.wait)>90:
 				_expire(trip,"Pickup expired. No fare taken. Please book again when you are ready.")
@@ -364,7 +462,8 @@ func _physics_process(delta: float) -> void:
 				trip.pickup_curb = car.node.global_position
 				car.state = "waiting"
 				trip.state = "waiting"
-				car.label.text = "AURORA • ARRIVED\nEnter booking PIN"
+				car.node.get_meta("marker").show()
+				_branding(car,trip.passenger_name+" • PICKUP")
 			else:
 				_finish(car,trip)
 			continue
@@ -392,6 +491,7 @@ func _physics_process(delta: float) -> void:
 			wheel.rotation.x += travel/0.36
 		if trip.state=="riding":
 			person.global_position = seat_position(person)
+			_pose(person,"seated",car)
 	npc_clock += delta
 	if npc_clock>=12:
 		npc_clock = 0
@@ -412,7 +512,9 @@ func _finish(car: Dictionary, trip: Dictionary) -> void:
 	car.speed = 0.0
 	_doors(car,0)
 	car.booking = ""
-	car.label.text = "AURORA • AVAILABLE"
+	_branding(car,"AVAILABLE")
+	car.node.get_meta("marker").hide()
+	_pose(person,"idle",car)
 	bookings.erase(economy.key_for(person))
 
 func _npc_book() -> void:
@@ -435,7 +537,7 @@ func _doors(car: Dictionary, open: float) -> void:
 
 func is_pickup_near(person: Node3D) -> bool:
 	var key: String = economy.key_for(person)
-	return bookings.has(key) and bookings[key].state=="waiting" and person.global_position.distance_to(bookings[key].pickup_curb)<5
+	return bookings.has(key) and bookings[key].state=="waiting" and person.global_position.distance_to(boarding_point(person))<1.35
 
 # Repair stale references rather than trapping a player behind an obsolete booking.
 func _reconcile(person: Node3D) -> void:
@@ -466,6 +568,8 @@ func _release_orphan(key: String) -> void:
 			car.booking = ""
 			car.state = "idle"
 			car.speed = 0.0
+			_branding(car,"AVAILABLE")
+			car.node.get_meta("marker").hide()
 	bookings.erase(key)
 
 func _expire(trip: Dictionary, text: String) -> void:

@@ -17,6 +17,12 @@ var tabs: TabContainer
 var conversation: Label
 var rent_button: Button
 var selected_house := 0
+var name_owner := ""
+var passenger_name: LineEdit
+var selected_location: Dictionary = {}
+var unlock_button: Button
+var confirm_button: Button
+var book_button: Button
 
 func _ready() -> void:
 	layer = 20
@@ -49,28 +55,46 @@ func _ready() -> void:
 	tabs.custom_minimum_size = Vector2(550,380)
 	rows.add_child(tabs)
 	var cab := _tab(tabs,"Aurora")
-	_label(cab,"Driverless travel • quoted fare • private boarding PIN")
+	_label(cab,"Your cab number and name identify your reserved Aurora.")
+	passenger_name = LineEdit.new()
+	passenger_name.placeholder_text = "Passenger name (shown on your cab)"
+	passenger_name.max_length = 28
+	passenger_name.text = game.player.profile.name
+	name_owner = game.player.profile.name
+	cab.add_child(passenger_name)
 	search = LineEdit.new()
 	search.placeholder_text = "Find house number, street, stop or park"
 	search.text_changed.connect(func(_text): _locations())
 	cab.add_child(search)
 	destinations = OptionButton.new()
-	destinations.item_selected.connect(func(_i): _quote())
+	destinations.item_selected.connect(func(index):
+		selected_location = filtered[index-1].duplicate() if index>0 else {}
+		_quote())
 	cab.add_child(destinations)
 	cab_status = _label(cab,"")
-	_button(cab,"Book pickup at my location",func():
-		if filtered.is_empty(): return
-		var booking: Dictionary = game.cabs.book(game.player,filtered[destinations.selected])
-		show_message("Booking accepted. Meet Aurora at the safe road pickup shown on the map." if not booking.is_empty() else game.economy.last_error)
+	_button(cab,"Choose destination on map • N",func():
+		panel.hide()
+		game.city_map.open(true))
+	book_button = _button(cab,"Book pickup • destination optional",func():
+		if passenger_name.text.strip_edges()=="":
+			show_message("Enter your passenger name so you can identify your cab.")
+			return
+		var booking: Dictionary = game.cabs.book(game.player,selected_location,passenger_name.text)
+		show_message("Pickup accepted. Your numbered cab will wait at the green boarding circle." if not booking.is_empty() else game.economy.last_error)
+		update_display())
+	confirm_button = _button(cab,"Confirm selected destination and fare",func():
+		show_message("Destination confirmed. Your Aurora will leave once the doors are closed." if game.cabs.choose_destination(game.player,selected_location) else game.economy.last_error)
 		update_display())
 	pin = LineEdit.new()
 	pin.placeholder_text = "Enter your two-digit code at the cab door"
 	pin.max_length = 2
 	pin.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
 	cab.add_child(pin)
-	_button(cab,"Unlock and board Aurora",func():
-		show_message("Door unlocked • fare paid • journey starting" if game.cabs.unlock(game.player,pin.text) else "Check your PIN and stand beside your arrived cab. Three errors lock it for 10 seconds.")
+	unlock_button = _button(cab,"Unlock and board Aurora",func():
+		show_message("Door unlocked • fare paid • walk in, then choose a destination if needed" if game.cabs.unlock(game.player,pin.text) else "Check your PIN and stand in your cab’s green boarding circle. Three errors lock it for 10 seconds.")
 		update_display())
+	_button(cab,"Leave parked cab before choosing destination • refund",func():
+		show_message("Unused journey refunded" if game.cabs.leave_waiting(game.player) else "This option is available while your cab waits for a destination."))
 	_button(cab,"Cancel unstarted booking",func(): show_message("Booking cancelled" if game.cabs.cancel(game.player) else "No cancellable booking"))
 	_button(cab,"Skip journey • keep the same fare",func():
 		show_message("Arrived at your destination" if game.cabs.skip_journey(game.player) else "Board with your code and wait for the doors to close first."))
@@ -135,6 +159,11 @@ func _ready() -> void:
 		for light in game.city.find_children("*","DirectionalLight3D",true,false):
 			light.shadow_enabled = value)
 	rows.add_child(quality)
+	var sound := CheckButton.new()
+	sound.text = "City sound on"
+	sound.button_pressed = not AudioServer.is_bus_mute(0)
+	sound.toggled.connect(func(value): AudioServer.set_bus_mute(0,not value))
+	rows.add_child(sound)
 	message = _label(rows,"Local save • autonomous council services • pounds sterling")
 	_locations()
 	_offers()
@@ -150,11 +179,20 @@ func _ready() -> void:
 	camera_button.focus_mode = Control.FOCUS_NONE
 	camera_button.pressed.connect(func(): game.player.cycle_view())
 	add_child(camera_button)
+	var map_button := Button.new()
+	map_button.text = "N • Map"
+	map_button.position = Vector2(680,20)
+	map_button.pressed.connect(func(): game.city_map.open())
+	add_child(map_button)
 
 func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = title
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(scroll)
 	var tab := VBoxContainer.new()
-	tab.name = title
-	tabs.add_child(tab)
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(tab)
 	return tab
 
 func _label(parent: Node, text: String) -> Label:
@@ -164,11 +202,12 @@ func _label(parent: Node, text: String) -> Label:
 	parent.add_child(label)
 	return label
 
-func _button(parent: Node, text: String, action: Callable) -> void:
+func _button(parent: Node, text: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.pressed.connect(action)
 	parent.add_child(button)
+	return button
 
 func show_message(text: String) -> void:
 	message.text = text
@@ -176,8 +215,8 @@ func show_message(text: String) -> void:
 
 func toggle() -> void:
 	panel.visible = not panel.visible
-	game.player.hud.visible = not panel.visible
-	game.player.controls.visible = not panel.visible
+	game.player.hud.visible = not panel.visible and not game.city_map.expanded
+	game.player.controls.visible = not panel.visible and not game.city_map.expanded
 	if panel.visible:
 		_offers()
 		update_display()
@@ -185,10 +224,12 @@ func toggle() -> void:
 func _locations() -> void:
 	filtered.clear()
 	destinations.clear()
+	destinations.add_item("Choose later • wait in the cab")
 	for location in game.economy.locations:
 		if search.text.strip_edges()=="" or location.name.to_lower().contains(search.text.to_lower()):
 			filtered.append(location)
 			destinations.add_item(location.name)
+	selected_location = {}
 	_quote()
 
 func _offers() -> void:
@@ -200,9 +241,17 @@ func _offers() -> void:
 			properties.add_item("House "+str(number)+" • "+game.economy.houses[number].street+" • £400/month")
 	if selected_house in offers: properties.select(offers.find(selected_house))
 
+func select_location(location: Dictionary) -> void:
+	selected_location = location.duplicate()
+	panel.show()
+	tabs.current_tab = 0
+	_quote()
+	show_message("Selected: "+str(location.name)+". Book a pickup or confirm this destination for your waiting cab.")
+
 func _quote() -> void:
-	if not filtered.is_empty():
-		cab_status.text = "Quote: "+game.economy.pounds(game.cabs.quote(game.player,filtered[maxi(0,destinations.selected)].point))
+	cab_status.text = "Choose a destination now, or after boarding. £3 boarding payment; remaining fare when you choose."
+	if selected_location.has("point"):
+		cab_status.text = str(selected_location.name)+" • quoted fare "+game.economy.pounds(game.cabs.quote(game.player,selected_location.point))
 
 func _navigate(point: Vector3) -> void:
 	game.city_map.destination = point
@@ -211,19 +260,29 @@ func _navigate(point: Vector3) -> void:
 	_release_focus()
 
 func update_display() -> void:
+	if name_owner!=game.player.profile.name:
+		name_owner = game.player.profile.name
+		passenger_name.text = name_owner
 	var account: Dictionary = game.economy.account_for(game.player)
 	summary.text = "%s • %s • Day %d %02d:00\nJob: %s • House: %s • Arrears: %s • Loan: %s" % [game.player.profile.name,game.economy.pounds(int(account.balance)),game.economy.day()+1,game.economy.hour(),account.job if account.job!="" else "Unemployed",str(account.house),game.economy.pounds(int(account.arrears)),game.economy.pounds(int(account.loan))]
 	var key: String = game.economy.key_for(game.player)
-	if game.cabs.bookings.has(key):
+	var active: bool = game.cabs.bookings.has(key)
+	passenger_name.editable = not active
+	if active: passenger_name.text = game.cabs.bookings[key].passenger_name
+	var authorised: bool = active and game.cabs.bookings[key].state in ["boarding","riding","awaiting_destination"]
+	pin.visible = active and not authorised
+	unlock_button.visible = pin.visible
+	book_button.visible = not active
+	confirm_button.visible = active and game.cabs.bookings[key].state!="riding"
+	if active:
 		var trip: Dictionary = game.cabs.bookings[key]
-		cab_status.text = "Aurora %s • %s\nFare %s • Your two-digit PIN: %s" % [str(int(trip.car)+1) if int(trip.car)>=0 else "queue",trip.state,game.economy.pounds(int(trip.fare)),trip.pin]
-		if trip.state=="approaching" and int(trip.car)>=0:
-			cab_status.text += "\nCab is %dm from the road pickup. Cancel and rebook if your road is blocked." % int(game.cabs.cars[int(trip.car)].node.global_position.distance_to(trip.pickup_curb))
-		if trip.state=="waiting":
-			cab_status.text += "\nArrived • walk to the blue map marker, then enter your code."
-		if trip.has("pickup_curb") and trip.state in ["approaching","waiting"]:
-			game.city_map.destination = trip.pickup_curb
-			game.city_map.destination_active = true
+		var cab_id: String = game.cabs.cars[int(trip.car)].cab_id if int(trip.car)>=0 else "Dispatch queue"
+		cab_status.text = "%s • %s • %s\nFare %s • %s" % [cab_id,trip.passenger_name,trip.state,game.economy.pounds(int(trip.fare)),str(trip.destination.get("name","Destination not chosen • cab will wait"))]
+		if not authorised: cab_status.text += "\nYour two-digit PIN: "+str(trip.pin)
+		if trip.state=="waiting": cab_status.text += "\nStand in the GREEN circle beside "+cab_id+" to enter your code."
+		if trip.state=="awaiting_destination": cab_status.text += "\nParked safely. Choose a destination in the list or on the map, then confirm."
+		if selected_location.has("point") and trip.state!="riding":
+			cab_status.text += "\nSelected: "+str(selected_location.name)+" • "+game.economy.pounds(game.cabs.quote(game.player,selected_location.point))
 	else:
 		_quote()
 		var notice: String = game.cabs.last_notice.get(key,"")
@@ -244,10 +303,10 @@ func _process(delta: float) -> void:
 	var available := get_viewport().get_visible_rect().size
 	var factor := minf(1,minf((available.x-35)/580.0,(available.y-75)/maxf(panel.size.y,560)))
 	panel.scale = Vector2.ONE*maxf(0.4,factor)
-	game.player.hud.visible = not panel.visible
-	game.player.controls.visible = not panel.visible
+	game.player.hud.visible = not panel.visible and not game.city_map.expanded
+	game.player.controls.visible = not panel.visible and not game.city_map.expanded
 	if game.player.driving and is_instance_valid(game.player.vehicle):
-		game.player.vehicle.set_meta("controls_blocked",panel.visible)
+		game.player.vehicle.set_meta("controls_blocked",panel.visible or game.city_map.expanded)
 	refresh_clock += delta
 	if panel.visible and refresh_clock>0.5:
 		refresh_clock = 0

@@ -54,9 +54,11 @@ func _ready() -> void:
 	population.player = player
 	town.add_child(population)
 	var map_layer := CanvasLayer.new()
+	map_layer.layer = 18
 	town.add_child(map_layer)
 	var map := preload("res://town/city_map.gd").new()
 	city_map = map
+	map.game = self
 	map.player = player
 	map.city = city
 	map.fleet = fleet
@@ -75,6 +77,9 @@ func _ready() -> void:
 	phone = preload("res://simulation/phone.gd").new()
 	phone.game = self
 	add_child(phone)
+	var events := preload("res://simulation/street_events.gd").new()
+	events.game = self
+	add_child(events)
 	bus_recitation = preload("res://transport/bus_recitation.gd").new()
 	bus_recitation.game = self
 	add_child(bus_recitation)

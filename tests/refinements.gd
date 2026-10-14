@@ -58,7 +58,7 @@ func run() -> void:
     car.node.global_position=trip.pickup_curb
     car.state="waiting"
     trip.state="waiting"
-    p.global_position=trip.pickup_curb+Vector3(1,0,0)
+    p.global_position=game.cabs.boarding_point(p)
     trip.pin="07"
     if not check(cabs.unlock(p,"07") and game.economy.cash(p)==balance-trip.fare,"Leading-zero two-digit code unlocks and takes one fare"): return
     if not check(not cabs.skip_journey(p),"Skip is locked until the boarding doors close"): return

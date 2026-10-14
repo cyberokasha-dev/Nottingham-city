@@ -18,10 +18,10 @@ func run():
   await physics_frame
   if trip.state=="waiting" and not boarded:
    var waiting_car=game.cabs.cars[trip.car].node
-   if not game.cabs.is_pickup_near(p) or waiting_car.position.distance_to(game.cabs.curb(waiting_car.position))<5:
+   if p.global_position.distance_to(game.cabs.boarding_point(p))>8 or waiting_car.position.distance_to(game.cabs.curb(waiting_car.position))<5:
     push_error("Arrived Aurora must wait close to the requested pickup, outside the running lane")
     break
-   p.global_position=trip.pickup_curb+Vector3(1.5,0,0)
+   p.global_position=game.cabs.boarding_point(p)
    boarded=game.cabs.unlock(p,trip.pin)
   if boarded and p.riding_service==null:
    completed=true
