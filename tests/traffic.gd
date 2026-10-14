@@ -8,7 +8,7 @@ func check_traffic() -> void:
     root.add_child(traffic)
     traffic.set_process(false)
     if not check(traffic.cars.size() == 48, "Detailed traffic fleet"): return
-    if not check(traffic.signals.size() == 48, "Four signal approaches at every junction"): return
+    if not check(traffic.signals.size() == 64, "Four signal approaches at every junction"): return
     if not check(traffic.lamp_materials.size() == 6, "Lamp materials shared"): return
     for item in traffic.cars:
         if not check(is_equal_approx(item.node.position.y, traffic.LEVEL), "Cars start on the road"): return
@@ -23,7 +23,7 @@ func check_traffic() -> void:
                 if not check(lamp.is_inside_tree(), "Signals owned by scene"): return
                 if not check(lamp.material_override in traffic.lamp_materials): return
     # A red light must stop a car at the line even when one frame spans it.
-    var car = traffic.cars[8]
+    var car = traffic.cars[1]
     for other in traffic.cars:
         if other != car:
             other.taken = true
