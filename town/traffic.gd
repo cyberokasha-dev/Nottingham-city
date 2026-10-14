@@ -225,22 +225,19 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 		var distance := pos.z if vertical else pos.x
 		for crossing in (ROAD_Z if vertical else ROAD_X):
 			var ahead: float = (float(crossing)-distance)*signf(axis)
-			if ahead<2.5:
-				continue
+			# A bus must wait with its whole body outside the committed box.
+			# Once inside, let it clear; do not stop it again at a two-metre line.
+			if ahead<11.99: continue
 			var junction := Vector3(pos.x if vertical else float(crossing),LEVEL,float(crossing) if vertical else pos.z)
-			# Use road centres, not the offset lane coordinate.
 			if vertical:
 				for x in ROAD_X:
 					if absf(pos.x-x)<6: junction.x=x; break
 			else:
 				for z in ROAD_Z:
 					if absf(pos.z-z)<6: junction.z=z; break
-			if _has_signal_at(junction.x,junction.z):
-				if ahead>=11.99 and (not _green(vertical) or _junction_busy(junction,direction,ignore)):
-					travel = minf(travel,maxf(0,ahead-12.0))
-			elif _junction_busy(junction,direction,ignore):
-				# Keep checking until the give-way line, not only when first 12m away.
-				travel = minf(travel,maxf(0,ahead-2.5))
+			var red := _has_signal_at(junction.x,junction.z) and not _green(vertical)
+			if red or _junction_busy(junction,direction,ignore):
+				travel=minf(travel,maxf(0,ahead-12.0))
 	var obstacles := nearby_vehicles(pos,half_length+requested+10)
 	query_count+=1
 	candidate_checks+=obstacles.size()
