@@ -14,8 +14,11 @@ var economy: Node
 var cabs: Node3D
 var phone: CanvasLayer
 var bus_recitation: CanvasLayer
+var performance: Node
 
 func _ready() -> void:
+	performance = preload("res://simulation/performance.gd").new()
+	add_child(performance)
 	town = Node3D.new()
 	town.name = "CityWorld"
 	add_child(town)
@@ -86,6 +89,7 @@ func _ready() -> void:
 	add_child(bus_recitation)
 	city.transport.recitation = bus_recitation
 	_settle_parked_fleet()
+	city.traffic.invalidate_spatial()
 
 func _settle_parked_fleet() -> void:
 	for i in range(120):

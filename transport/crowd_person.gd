@@ -5,7 +5,10 @@ var variant := 0
 var legs: Array[Node3D] = []
 var arms: Array[Node3D] = []
 var phase := 0.0
-var walking := false
+var walking := false:
+	set(value):
+		walking=value
+		set_process(value)
 var knees: Array[Node3D] = []
 var seated := false
 static var palette: Dictionary = {}
@@ -50,6 +53,7 @@ func _ready() -> void:
 		arms.append(arm)
 
 	for mesh in find_children("*","MeshInstance3D",true,false): mesh.visibility_range_end = 45.0
+	set_process(walking)
 
 func _process(delta: float) -> void:
 	if not walking:

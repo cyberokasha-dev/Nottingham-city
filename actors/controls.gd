@@ -113,6 +113,7 @@ func _ready() -> void:
 	rows.add_child(sound)
 
 func _process(_delta: float) -> void:
+	if not is_instance_valid(player) or not player.controlled: return
 	var viewport := get_viewport().get_visible_rect().size
 	var left := 290.0 if viewport.x>=900 else 20.0
 	panel.size.x = maxf(440,viewport.x-left-20)

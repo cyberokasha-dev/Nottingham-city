@@ -22,6 +22,9 @@ var minus_button: Button
 var walking_route := PackedVector3Array()
 var route_clock := 0.0
 var show_homes := true
+var atlas_texture: ImageTexture
+var atlas_builds := 0
+var last_layout := Vector3(-1,-1,-1)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -34,6 +37,7 @@ func _ready() -> void:
 		game.phone.select_location(selected_place))
 	plus_button = _button("+",func(): zoom = minf(3,zoom*1.3); queue_redraw())
 	minus_button = _button("−",func(): zoom = maxf(1,zoom/1.3); _bound_center(); queue_redraw())
+	_build_atlas()
 	_layout()
 
 func _button(text: String, action: Callable) -> Button:
@@ -46,6 +50,12 @@ func _button(text: String, action: Callable) -> Button:
 
 func _layout() -> void:
 	var viewport := get_viewport_rect().size
+	var layout_key := Vector3(viewport.x,viewport.y,float(expanded))
+	if last_layout==layout_key:
+		walk_button.visible=expanded and destination_active
+		cab_button.visible=walk_button.visible
+		return
+	last_layout=layout_key
 	size = Vector2(minf(viewport.x-40,900),minf(viewport.y-90,700)) if expanded else Vector2(250,260)
 	position = (viewport-size)*0.5 if expanded else (Vector2(20,maxf(70,viewport.y-size.y-20)) if viewport.x>=900 else Vector2(viewport.x-size.x-20,70))
 	map_rect = Rect2(14,45,size.x-28,size.y-(145 if expanded else 82))
@@ -185,13 +195,33 @@ func _line(from: Vector2, to: Vector2, color: Color, width: float) -> void:
 			else: finish=minf(finish,t)
 	if start<=finish: draw_line(from+delta*start,from+delta*finish,color,width,true)
 
-func _world_rect(bounds: Rect2, color: Color) -> void:
-	var polygon := PackedVector2Array()
-	for corner in [bounds.position,Vector2(bounds.end.x,bounds.position.y),bounds.end,Vector2(bounds.position.x,bounds.end.y)]:
-		polygon.append(point(Vector3(corner.x,0,corner.y)))
-	var clip := PackedVector2Array([map_rect.position,Vector2(map_rect.end.x,map_rect.position.y),map_rect.end,Vector2(map_rect.position.x,map_rect.end.y)])
-	for result in Geometry2D.intersect_polygons(polygon,clip):
-		if result.size()>=3 and Geometry2D.triangulate_polygon(result).size()>=3: draw_colored_polygon(result,color)
+func _atlas_rect(image: Image, bounds: Rect2, color: Color) -> void:
+	var a := (bounds.position+Vector2(170,160))/340*1024
+	var b := bounds.size/340*1024
+	image.fill_rect(Rect2i(Vector2i(a),Vector2i(b)).intersection(Rect2i(0,0,1024,1024)),color)
+
+func _build_atlas() -> void:
+	# Bake static roads, buildings and districts once; radar frames only sample this texture.
+	var image := Image.create(1024,1024,false,Image.FORMAT_RGB8)
+	image.fill(Color("293035"))
+	for area in city.districts:
+		_atlas_rect(image,area.bounds,Color("30383b") if city.districts.find(area)%2==0 else Color("343b3d"))
+	for park in city.parks: _atlas_rect(image,Rect2(Vector2(park.position.x-17,park.position.z-15),Vector2(34,30)),Color("506650"))
+	for house in city.houses: _atlas_rect(image,Rect2(Vector2(house.position.x-5,house.position.z-6),Vector2(10,12)),Color("687071"))
+	for color in [Color("c0c3c0"),Color("646c6e")]:
+		var width := 11.0 if color==Color("c0c3c0") else 8.0
+		for x in city.ROAD_X+[-160.0,160.0]: _atlas_rect(image,Rect2(x-width/2,-156,width,332),color)
+		for z in city.ROAD_Z+[-150.0,170.0]: _atlas_rect(image,Rect2(-166,z-width/2,332,width),color)
+	atlas_texture = ImageTexture.create_from_image(image)
+	atlas_builds+=1
+
+func _draw_atlas() -> void:
+	var quad := PackedVector2Array([map_rect.position,Vector2(map_rect.end.x,map_rect.position.y),map_rect.end,Vector2(map_rect.position.x,map_rect.end.y)])
+	var uv := PackedVector2Array()
+	for corner in quad:
+		var world := world_point(corner)
+		uv.append((Vector2(world.x,world.z)+Vector2(170,160))/340)
+	draw_polygon(quad,PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),uv,atlas_texture)
 
 func _place(world: Vector3, text: String, color: Color, icon := "") -> void:
 	var p := point(world)
@@ -210,17 +240,7 @@ func _draw() -> void:
 	_caption(Vector2(14,24),"NOTTINGHAM • CITY MAP" if expanded else str(district.name).to_upper(),Color("eff1ef"),14)
 	if not is_instance_valid(city): return
 	draw_rect(map_rect,Color("293035"))
-	for area in city.districts:
-		_world_rect(area.bounds,Color("30383b") if city.districts.find(area)%2==0 else Color("343b3d"))
-	for park in city.parks: _world_rect(Rect2(Vector2(park.position.x-17,park.position.z-15),Vector2(34,30)),Color("506650"))
-	for house in city.houses:
-		_world_rect(Rect2(Vector2(house.position.x-5,house.position.z-6),Vector2(10,12)),Color("687071"))
-	for x in city.ROAD_X+[-160.0,160.0]:
-		_line(point(Vector3(x,0,-156)),point(Vector3(x,0,176)),Color("c0c3c0"),9 if expanded else 13)
-		_line(point(Vector3(x,0,-156)),point(Vector3(x,0,176)),Color("646c6e"),6 if expanded else 9)
-	for z in city.ROAD_Z+[-150.0,170.0]:
-		_line(point(Vector3(-166,0,z)),point(Vector3(166,0,z)),Color("c0c3c0"),9 if expanded else 13)
-		_line(point(Vector3(-166,0,z)),point(Vector3(166,0,z)),Color("646c6e"),6 if expanded else 9)
+	if atlas_texture!=null: _draw_atlas()
 	if expanded:
 		for area in city.districts:
 			var p := point(area.center)

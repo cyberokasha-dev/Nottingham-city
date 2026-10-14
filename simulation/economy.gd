@@ -14,6 +14,9 @@ var houses: Dictionary = {}
 var locations: Array[Dictionary] = []
 var work_seconds := {}
 var last_error := ""
+var save_pending := false
+var save_age := 0.0
+var saves_written := 0
 
 func _ready() -> void:
 	if not OS.has_environment("NOTTINGHAM_TEST") and FileAccess.file_exists(SAVE_PATH):
@@ -215,6 +218,9 @@ func build_locations() -> void:
 func _process(delta: float) -> void:
 	if not enabled:
 		return
+	if save_pending:
+		save_age+=delta
+		if save_age>=1.0: flush_save()
 	data.seconds = float(data.seconds)+delta
 	step += delta
 	save_clock += delta
@@ -249,15 +255,24 @@ func _process(delta: float) -> void:
 func save() -> void:
 	if not enabled or OS.has_environment("NOTTINGHAM_TEST"):
 		return
+	if not save_pending: save_age=0
+	save_pending = true
+
+func flush_save() -> void:
+	if not save_pending: return
 	var file := FileAccess.open(SAVE_PATH+".tmp",FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(data))
 		file.close()
-		DirAccess.rename_absolute(SAVE_PATH+".tmp",SAVE_PATH)
+		if DirAccess.rename_absolute(SAVE_PATH+".tmp",SAVE_PATH)!=OK: return
+		save_pending=false
+		save_age=0
+		saves_written+=1
 
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_CLOSE_REQUEST:
 		save()
+		flush_save()
 
 func _build_office() -> void:
 	var G = preload("res://transport/geometry.gd")

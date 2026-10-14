@@ -131,6 +131,7 @@ func _update_position() -> void:
 	var sample: Dictionary = manager.sample(route,distance)
 	global_position = sample.position
 	rotation.y = atan2(sample.direction.x,sample.direction.z)
+	manager.traffic.track_vehicle(self)
 
 func arrive(index: int) -> void:
 	stop_index = index

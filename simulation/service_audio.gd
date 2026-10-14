@@ -10,6 +10,7 @@ static var effects: Dictionary = {}
 
 func _ready() -> void:
 	name = "ServiceAudio"
+	range_clock = float(get_instance_id()%11)*0.027
 	engine = AudioStreamPlayer3D.new()
 	engine.max_distance = 38
 	engine.unit_size = 7
@@ -27,11 +28,11 @@ func _process(delta: float) -> void:
 		range_clock = 0
 		var camera := get_viewport().get_camera_3d()
 		in_range = is_instance_valid(camera) and camera.global_position.distance_squared_to(global_position)<1600
-		if not in_range: engine.stop()
+		if not in_range and engine.playing: engine.stop()
 
 func set_motion(speed: float, kind := "engine") -> void:
 	if not in_range or kind=="silent" or speed<0.15:
-		engine.stop()
+		if engine.playing: engine.stop()
 		return
 	if last_kind!=kind:
 		engine.stop()

@@ -9,7 +9,7 @@ func check_party() -> void:
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
     game.city.transport.timetable_enabled = false
-    for i in range(150):
+    for i in range(ticks(1.25)):
         await physics_frame
     var original = game.player
     if not check(game.party.members.size() == 4 and original.profile.name == "Muhammad" and original.animator.has_animation("fold_arms"), "Muhammad starts in a four-person playable party"):
@@ -25,7 +25,7 @@ func check_party() -> void:
     if not check(game.party.wheel.visible and game.party.wheel.sector_at(game.party.wheel.center+Vector2(100,-100)) == 0 and game.party.wheel.sector_at(game.party.wheel.center+Vector2(-100,100)) == 2, "Four-wheel sectors match their click targets"):
         return
     Input.action_press("walk_forward")
-    for i in range(30):
+    for i in range(ticks(0.25)):
         await physics_frame
     Input.action_release("walk_forward")
     if not check(original.global_position.distance_to(original_position) < 0.05, "Wheel blocks movement behind the selection UI"):
@@ -37,29 +37,29 @@ func check_party() -> void:
         if not check(game.player == game.party.members[index] and game.player.camera.current and game.population.player == game.player and game.city_map.player == game.player, "Control, camera, map and residents follow selected character"):
             return
         Input.action_press("walk_forward")
-        for i in range(35):
+        for i in range(ticks(0.291667)):
             await physics_frame
         Input.action_release("walk_forward")
         if not check(game.player.global_position.distance_to(before) > 0.4, "All four characters can walk"):
             return
         Input.action_press("jump")
-        for i in range(2):
+        for i in range(ticks(0.0166667)):
             await physics_frame
         Input.action_release("jump")
         if not check(game.player.velocity.y > 0, "All four characters can jump"):
             return
-        for i in range(80):
+        for i in range(ticks(0.666667)):
             await physics_frame
     if not check(game.player.health == 67 and not game.party.wheel.visible, "Muhammad retains independent health across switches"):
         return
     Input.action_press("fold_arms")
-    for i in range(40):
+    for i in range(ticks(0.333333)):
         await physics_frame
     Input.action_release("fold_arms")
     if not check(original.folded_arms and original.current_clip == "fold_arms", "H performs a deliberate arms-crossed action"):
         return
     Input.action_press("walk_forward")
-    for i in range(20):
+    for i in range(ticks(0.166667)):
         await physics_frame
     Input.action_release("walk_forward")
     if not check(not original.folded_arms, "Walking restores a normal pose"):
@@ -67,17 +67,17 @@ func check_party() -> void:
     # A car switch exits safely before handing over control.
     original.global_position = game.fleet[0].global_position+Vector3(2.5,0,0)
     original.velocity = Vector3.ZERO
-    for i in range(30):
+    for i in range(ticks(0.25)):
         await physics_frame
     if not check(original.try_enter(), "Muhammad enters a vehicle"):
         return
-    for i in range(300):
+    for i in range(ticks(2.5)):
         await physics_frame
         if not original.transitioning:
             break
     if not check(game.party.choose(1), "A stopped driver may change character"):
         return
-    for i in range(300):
+    for i in range(ticks(2.5)):
         await physics_frame
         if not game.party.switching:
             break
@@ -121,7 +121,7 @@ func check_party() -> void:
     target.combat_time = 8
     if not check(scene.start(target) and scene.context == "hostile", "Fight can be interrupted by a conversation"):
         return
-    for i in range(1600):
+    for i in range(ticks(13.3333)):
         await physics_frame
         if scene.ready_for_reply:
             break
@@ -129,7 +129,7 @@ func check_party() -> void:
         return
     if not check(scene.choose(0), "Player selects an apology"):
         return
-    for i in range(1700):
+    for i in range(ticks(14.1667)):
         await physics_frame
         if not scene.active:
             break
@@ -176,3 +176,7 @@ func check(condition: bool,message: String) -> bool:
         quit(1)
         return false
     return true
+
+# Timed interactions retain the same duration when the physics tick rate changes.
+func ticks(seconds: float) -> int:
+    return maxi(2,roundi(seconds*Engine.physics_ticks_per_second))

@@ -6,6 +6,7 @@ var fill: MeshInstance3D
 var caption: Label3D
 var fill_material: StandardMaterial3D
 var shown_health := -1
+var update_clock := 0.0
 
 func _ready() -> void:
 	var background := MeshInstance3D.new()
@@ -35,6 +36,9 @@ func _ready() -> void:
 	add_child(caption)
 
 func _process(_delta: float) -> void:
+	update_clock+=_delta
+	if is_instance_valid(actor) and shown_health==actor.health and update_clock<0.15: return
+	update_clock=0
 	if not is_instance_valid(actor) or not is_instance_valid(viewer):
 		return
 	visible = global_position.distance_to(viewer.global_position) < (24 if actor.health < 100 else 12)

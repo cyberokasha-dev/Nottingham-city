@@ -16,8 +16,20 @@ var step_accumulator := 0.0
 var pedestrians: Array[Node] = []
 var autonomous_nodes: Array[Node3D] = []
 var crowd_refresh := 0.0
+var spatial_enabled := true
+var query_count := 0
+var candidate_checks := 0
+var index_builds := 0
+var _index_frame := Vector2i(-1,-1)
+var _index_sizes := Vector3i(-1,-1,-1)
+var _indexed_nodes: Array[Node3D] = []
+var _cells := {}
+var _node_cells := {}
+var _lane_groups := {}
+const CELL_SIZE := 16.0
 
 func _ready() -> void:
+	add_to_group("city_traffic")
 	# Share the six lamp materials instead of allocating 180 materials every frame.
 	for color in [Color.RED,Color("391616"),Color.YELLOW,Color("39341b"),Color.GREEN,Color("18311c")]:
 		var material := StandardMaterial3D.new()
@@ -111,6 +123,7 @@ func _process(delta: float) -> void:
 		crowd_refresh = 0.5
 	clock = fposmod(clock+delta,CYCLE)
 	_update_lamps()
+	_rebuild_lane_groups()
 	for item in cars:
 		if item.get("taken",false):
 			continue
@@ -146,6 +159,7 @@ func _process(delta: float) -> void:
 		else:
 			node.position = Vector3(distance,LEVEL,ROAD_Z[item.lane]+item.offset)
 			node.rotation.y = PI/2.0 if direction>0 else -PI/2.0
+		track_vehicle(node)
 
 func _green(vertical: bool) -> bool:
 	return clock<GREEN_SECONDS if vertical else (clock>=HALF_CYCLE and clock<HALF_CYCLE+GREEN_SECONDS)
@@ -167,31 +181,24 @@ func _update_lamps() -> void:
 		for i in range(3):
 			junction_signal.lamps[i].material_override = lamp_materials[indices[i]]
 
+func _lane_key(item: Dictionary) -> Vector3i:
+	return Vector3i(int(item.vertical),int(item.lane),int(item.direction))
+
+func _rebuild_lane_groups() -> void:
+	_lane_groups.clear()
+	for item in cars:
+		if item.get("taken",false): continue
+		var key := _lane_key(item)
+		if not _lane_groups.has(key): _lane_groups[key] = []
+		_lane_groups[key].append(item)
+
 func _following_gap(item: Dictionary) -> float:
 	var gap := 10000.0
-	for other in cars:
-		if other.get("taken",false) or other==item or other.vertical!=item.vertical or other.lane!=item.lane or other.direction!=item.direction:
-			continue
+	for other in _lane_groups.get(_lane_key(item),cars):
+		if other.get("taken",false) or other==item or other.vertical!=item.vertical or other.lane!=item.lane or other.direction!=item.direction: continue
 		var ahead: float = fposmod((other.distance-item.distance)*item.direction,314.0)
 		gap = minf(gap,maxf(0,ahead-6.0))
-	if is_instance_valid(transport):
-		var direction := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
-		for bus in transport.buses:
-			if not bus.visible:
-				continue
-			var offset: Vector3 = bus.global_position-item.node.global_position
-			var ahead := offset.dot(direction)
-			var lateral := (offset-direction*ahead).length()
-			if ahead>0 and lateral<2.5 and bus.global_basis.z.dot(direction)>0.8:
-				gap = minf(gap,maxf(0,ahead-9.0))
-	for cab in autonomous_nodes:
-		var heading := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
-		var offset: Vector3 = cab.global_position-item.node.global_position
-		var ahead := offset.dot(heading)
-		if ahead>0 and (offset-heading*ahead).length()<2.5 and cab.global_basis.z.dot(heading)>0.7:
-			gap = minf(gap,maxf(0,ahead-6.0))
-	var heading := Vector3(0,0,item.direction) if item.vertical else Vector3(item.direction,0,0)
-	gap = minf(gap,_pedestrian_gap(item.node.global_position,heading,4.5))
+	# Routed vehicles and people are already checked by allowed_travel.
 	return gap
 
 # Shared traffic rule query for routed buses. Signal approaches and lane queues
@@ -216,7 +223,9 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 						if absf(pos.z-z)<6: junction.z=z; break
 				if not _green(vertical) or _junction_busy(junction,direction,ignore):
 					travel = minf(travel,maxf(0,ahead-12.0))
-	var obstacles := vehicle_nodes()
+	var obstacles := nearby_vehicles(pos,half_length+requested+10)
+	query_count+=1
+	candidate_checks+=obstacles.size()
 	for other in obstacles:
 		if other == ignore or not other.visible:
 			continue
@@ -280,6 +289,7 @@ func claim_car(person: CharacterBody3D) -> bool:
 	if item.is_empty():
 		return false
 	item.taken = true
+	invalidate_spatial()
 	var pose: Transform3D = item.node.global_transform
 	item.node.hide()
 	item.node.get_node("ServiceAudio").engine.stop()
@@ -299,7 +309,7 @@ func claim_car(person: CharacterBody3D) -> bool:
 func lane_position(item: Dictionary, distance: float) -> Vector3:
 	return Vector3(ROAD_X[maxi(0,int(item.lane))]+item.offset,LEVEL,distance) if item.vertical else Vector3(distance,LEVEL,ROAD_Z[maxi(0,int(item.lane))]+item.offset)
 
-func vehicle_nodes() -> Array[Node3D]:
+func _collect_vehicle_nodes() -> Array[Node3D]:
 	var nodes: Array[Node3D] = []
 	for item in cars:
 		if not item.get("taken",false): nodes.append(item.node)
@@ -311,11 +321,65 @@ func vehicle_nodes() -> Array[Node3D]:
 			if is_instance_valid(body): nodes.append(body)
 	return nodes
 
+func invalidate_spatial() -> void:
+	_index_frame = Vector2i(-1,-1)
+
+func _ensure_index() -> void:
+	var frame := Vector2i(Engine.get_process_frames(),Engine.get_physics_frames())
+	var sizes := Vector3i(cars.size(),autonomous_nodes.size(),transport.buses.size() if is_instance_valid(transport) else 0)
+	if frame==_index_frame and sizes==_index_sizes: return
+	_index_frame = frame
+	_index_sizes = sizes
+	_indexed_nodes = _collect_vehicle_nodes()
+	_cells.clear()
+	_node_cells.clear()
+	index_builds+=1
+	for node in _indexed_nodes: _insert_cell(node)
+
+func _insert_cell(node: Node3D) -> void:
+	var point := node.global_position
+	var cell := Vector2i(floori(point.x/CELL_SIZE),floori(point.z/CELL_SIZE))
+	if not _cells.has(cell): _cells[cell] = []
+	_cells[cell].append(node)
+	_node_cells[node.get_instance_id()] = cell
+
+func track_vehicle(node: Node3D) -> void:
+	if not spatial_enabled or _index_frame.x<0: return
+	var id := node.get_instance_id()
+	if not _node_cells.has(id):
+		invalidate_spatial()
+		return
+	var point := node.global_position
+	var cell := Vector2i(floori(point.x/CELL_SIZE),floori(point.z/CELL_SIZE))
+	var old: Vector2i = _node_cells[id]
+	if cell==old: return
+	_cells[old].erase(node)
+	_insert_cell(node)
+
+func vehicle_nodes() -> Array[Node3D]:
+	if not spatial_enabled or not is_inside_tree(): return _collect_vehicle_nodes()
+	_ensure_index()
+	return _indexed_nodes
+
+func nearby_vehicles(position: Vector3, radius: float) -> Array[Node3D]:
+	if not spatial_enabled or not is_inside_tree(): return _collect_vehicle_nodes()
+	_ensure_index()
+	var nodes: Array[Node3D] = []
+	# Padding covers an independently driven body moving during the same frame.
+	var reach := radius+4.0
+	var min_cell := Vector2i(floori((position.x-reach)/CELL_SIZE),floori((position.z-reach)/CELL_SIZE))
+	var max_cell := Vector2i(floori((position.x+reach)/CELL_SIZE),floori((position.z+reach)/CELL_SIZE))
+	for x in range(min_cell.x,max_cell.x+1):
+		for z in range(min_cell.y,max_cell.y+1):
+			for node in _cells.get(Vector2i(x,z),[]):
+				if is_instance_valid(node): nodes.append(node)
+	return nodes
+
 func _junction_busy(center: Vector3, heading: Vector3, ignore: Node3D) -> bool:
 	# A vehicle commits when its centre passes the twelve-metre stop line.
 	# Keep the whole box exclusive until it clears. Right-turning buses can
 	# otherwise trap an opposing car halfway through their swept turn.
-	for node in vehicle_nodes():
+	for node in nearby_vehicles(center,18):
 		if node==ignore or not node.visible: continue
 		if absf(node.global_position.x-center.x)<11.9 and absf(node.global_position.z-center.z)<11.9:
 			# Straight queues and opposite lanes can share green; turning paths stay exclusive.

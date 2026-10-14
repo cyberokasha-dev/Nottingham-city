@@ -158,6 +158,16 @@ func _ready() -> void:
 		for light in game.city.find_children("*","DirectionalLight3D",true,false):
 			light.shadow_enabled = value)
 	rows.add_child(quality)
+	var graphics := OptionButton.new()
+	for preset_title in game.performance.TITLES: graphics.add_item(preset_title)
+	graphics.select(game.performance.mode)
+	graphics.item_selected.connect(func(index): game.performance.apply(index))
+	rows.add_child(graphics)
+	var fps := CheckButton.new()
+	fps.text = "Show frame rate"
+	fps.button_pressed = game.performance.show_fps
+	fps.toggled.connect(func(value): game.performance.set_fps(value))
+	rows.add_child(fps)
 	var sound := CheckButton.new()
 	sound.text = "City sound on"
 	sound.button_pressed = not AudioServer.is_bus_mute(0)

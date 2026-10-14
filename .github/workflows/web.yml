@@ -131,6 +131,13 @@ jobs:
           godot --headless --path . --fixed-fps 30 --script res://tests/city_service_continuity.gd 2>&1 | tee /tmp/city-continuity.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-continuity.log; then exit 1; fi
           grep -q 'CITY_SERVICE_CONTINUITY_OK' /tmp/city-continuity.log
+      - name: Check spatial query equivalence and performance budgets
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s godot --headless --path . --script res://tests/performance_budget.gd 2>&1 | tee /tmp/performance.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/performance.log; then exit 1; fi
+          grep -q 'PERFORMANCE_BUDGET_OK' /tmp/performance.log
       - name: Export browser game
         shell: bash
         run: |

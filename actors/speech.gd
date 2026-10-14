@@ -34,6 +34,7 @@ func _ready() -> void:
 	voice.finished.connect(_release_slot)
 	catalog = preload("res://actors/voices/catalog.gd").BANKS[voice_set]
 	voice.stream = load("res://actors/voices/"+voice_set+".ogg")
+	set_process(false)
 
 static func text_for(key: String) -> String:
 	return LINES.get(key,SCENE_LINES.LINES.get(key,""))
@@ -54,6 +55,7 @@ func speak(key: String, priority := false) -> bool:
 	var distance := actor.global_position.distance_to(viewer.global_position) if is_instance_valid(viewer) else 0.0
 	# Camera-independent distance attenuation is consistent with WebAudio sample playback.
 	voice.volume_db = lerpf(-2,-20,clampf(distance/18.0,0,1))
+	set_process(true)
 	voice.play(float(segment.start))
 	remaining = float(segment.duration)/voice.pitch_scale
 	active_speakers += 1
@@ -73,6 +75,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(actor) and actor.dead and voice.playing:
 		voice.stop()
 		_release_slot()
+	if cooldown<=0 and not owns_slot: set_process(false)
 
 func _release_slot() -> void:
 	if owns_slot:

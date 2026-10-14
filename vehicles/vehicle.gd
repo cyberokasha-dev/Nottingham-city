@@ -18,6 +18,7 @@ var upright_time := 0.0
 
 func _ready() -> void:
 	add_to_group("driveable_vehicles")
+	get_tree().call_group("city_traffic","invalidate_spatial")
 	set_driver_active(false)
 	add_child(preload("res://simulation/service_audio.gd").new())
 

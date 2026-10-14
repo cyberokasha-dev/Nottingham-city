@@ -30,6 +30,8 @@ func setup(variant := 0, female := false, identity := "human") -> void:
 	model.scale = Vector3(0.97 + (variant % 3) * 0.035,height,1.0)
 	if animator.has_animation("fold_arms"):
 		animator.get_animation("fold_arms").loop_mode = Animation.LOOP_LINEAR
+	lod_clock = float(variant%9)*0.027
+	wardrobe.set_shader_parameter("impact",0.0)
 	play("idle")
 
 func play(animation: String, blend := 0.16) -> void:
@@ -47,13 +49,13 @@ func impact() -> void:
 
 func _process(delta: float) -> void:
 	lod_clock += delta
-	if lod_clock>0.5:
+	if lod_clock>0.25:
 		lod_clock = 0
 		var camera := get_viewport().get_camera_3d()
 		if is_instance_valid(camera) and is_instance_valid(model):
 			var near := global_position.distance_squared_to(camera.global_position)<5625
 			model.visible = near
-			animator.active = near
-	flash_time = maxf(0,flash_time-delta)
-	if is_instance_valid(wardrobe):
-		wardrobe.set_shader_parameter("impact",flash_time/0.22)
+			animator.active = near and (global_position.distance_squared_to(camera.global_position)<100 or camera.is_position_in_frustum(global_position+Vector3.UP))
+	if flash_time>0:
+		flash_time = maxf(0,flash_time-delta)
+		if is_instance_valid(wardrobe): wardrobe.set_shader_parameter("impact",flash_time/0.22)

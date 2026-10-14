@@ -529,6 +529,7 @@ func _physics_process(delta: float) -> void:
 		car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
 		car.node.global_position += direction*travel
 		if travel>0.001: car.node.rotation.y = atan2(direction.x,direction.z)
+		game.city.traffic.track_vehicle(car.node)
 		for wheel in car.node.get_meta("wheels"):
 			wheel.rotation.x += travel/0.36
 		if trip.state=="riding":
@@ -634,6 +635,7 @@ func skip_journey(person: Node3D) -> bool:
 		var forward := (end-destination_path[-2]).normalized()
 		car.node.rotation.y = atan2(forward.x,forward.z)
 	car.node.global_position = end
+	game.city.traffic.track_vehicle(car.node)
 	_finish(car,trip)
 	return true
 
@@ -661,6 +663,7 @@ func _park_at_curb(car: Dictionary) -> void:
 		if game.city.traffic.space_clear(candidate,direction,car.node):
 			car.node.global_position = candidate
 			car.node.rotation.y = atan2(direction.x,direction.z)
+			game.city.traffic.track_vehicle(car.node)
 			return
 
 func _build_ranks() -> void:
@@ -717,6 +720,7 @@ func _return_to_rank(car: Dictionary, delta: float) -> void:
 	var travel: float = game.city.traffic.allowed_travel(car.node.global_position,direction,minf(8*delta,offset.length()),2.5,car.node)
 	car.node.global_position+=direction*travel
 	if travel>0.001: car.node.rotation.y = atan2(direction.x,direction.z)
+	game.city.traffic.track_vehicle(car.node)
 	car.speed = travel/maxf(delta,0.001)
 	car.node.get_node("ServiceAudio").set_motion(float(car.speed),"electric")
 	for wheel in car.node.get_meta("wheels",[]): wheel.rotation.x+=travel/0.36

@@ -10,7 +10,7 @@ func check_actions() -> void:
     game.economy.enforce_tenancy = false
     game.cabs.npc_clock = -100000
     game.city.transport.timetable_enabled = false
-    for i in range(150):
+    for i in range(ticks(1.25)):
         await physics_frame
     var player = game.player
     var resident = game.population.residents[0]
@@ -24,15 +24,15 @@ func check_actions() -> void:
     resident.state = "idle"
     resident.wait_time = 20
     resident.set_physics_process(true)
-    for i in range(20):
+    for i in range(ticks(0.166667)):
         await physics_frame
     Input.action_press("interact")
-    for i in range(3):
+    for i in range(ticks(0.025)):
         await physics_frame
     Input.action_release("interact")
     if not check(player.dialogue.last_line == "street_muhammad_open" and player.dialogue.voice.playing, "Interaction starts audible player greeting"):
         return
-    for i in range(520):
+    for i in range(ticks(4.33333)):
         await physics_frame
     if not check(game.conversation.active and resident.dialogue.spoken_lines > 0 and resident.dialogue.voice.playing, "Resident gives a timed spoken reply"):
         return
@@ -57,13 +57,13 @@ func check_actions() -> void:
     resident.talk_to(player)
     if not check(resident.dead and resident.health == 0 and not resident.try_rest("sleep"), "Dead resident cannot fight, talk or use furniture"):
         return
-    for i in range(350):
+    for i in range(ticks(2.91667)):
         await physics_frame
     var skeleton = resident.visual.find_child("Skeleton3D",true,false)
     var head_world = skeleton.global_transform*skeleton.get_bone_global_pose(skeleton.find_bone("Head"))
     if not check(resident.health == 0 and resident.dead and not resident.vitals.fill.visible and head_world.origin.y-resident.global_position.y < 0.8, "Resident stays at zero with body fallen on ground"):
         return
-    for i in range(650):
+    for i in range(ticks(5.41667)):
         await physics_frame
     if not check(not resident.dead and not resident.waking and resident.health == 100 and resident.visual.clip == "idle", "Resident wakes with health and idle animation restored"):
         return
@@ -77,17 +77,17 @@ func check_actions() -> void:
     var fallen_at = player.global_position
     Input.action_press("walk_forward")
     Input.action_press("jump")
-    for i in range(500):
+    for i in range(ticks(4.16667)):
         await physics_frame
     Input.action_release("walk_forward")
     Input.action_release("jump")
     if not check(player.dead and player.health == 0 and player.global_position.distance_to(fallen_at) < 0.2, "Dead player stays down with movement disabled"):
         return
-    for i in range(110):
+    for i in range(ticks(0.916667)):
         await physics_frame
     if not check(player.dead and player.waking and player.health == 0, "Player rises before health is restored"):
         return
-    for i in range(150):
+    for i in range(ticks(1.25)):
         await physics_frame
     if not check(not player.dead and not player.waking and player.health == 100 and player.camera.current, "Player wakes with control, camera and health restored"):
         return
@@ -101,7 +101,7 @@ func check_actions() -> void:
     player.action_time = 0
     if not check(player.try_rest("sleep"), "Sleep remains usable after waking"):
         return
-    for i in range(120):
+    for i in range(ticks(1)):
         await physics_frame
     if not check(player.health >= 47 and player.health <= 49, "Sleep restores health at eight points per second"):
         return
@@ -122,3 +122,7 @@ func check(condition: bool, description: String) -> bool:
         quit(1)
         return false
     return true
+
+# Timed interactions retain the same duration when the physics tick rate changes.
+func ticks(seconds: float) -> int:
+    return maxi(2,roundi(seconds*Engine.physics_ticks_per_second))

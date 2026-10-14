@@ -132,3 +132,14 @@ Traffic recovery now also uses oriented vehicle space at street-edge re-entry. O
 
 
 Curb departures now follow a forward merge curve and keep the parked heading while yielding. Nearby pickups use a clear curb space without an unnecessary road loop. `tests/city_service_continuity.gd` exercises three minutes of the populated city and requires every one of the twelve buses to continue serving stops; district tests cover walk-up/hail, address selection, seat ownership and the traffic deadlock regressions.
+
+
+### Frame-time improvements
+
+The phone (**P**) now offers **Smooth**, **Balanced** and **Sharp** graphics and an optional FPS counter. Smooth is the default: 75% 3D resolution and no multisample antialiasing; text and phone controls keep their native resolution. Balanced restores full resolution with 2× antialiasing; Sharp uses 4×. The choice saves locally.
+
+Traffic shares a 16-metre spatial index instead of rebuilding and scanning the whole fleet for every clearance query. Moving buses and Aurora cars update their cells immediately; lane-following uses lane rosters. The city atlas is painted once into a reusable texture. Physics runs at 60 Hz instead of 120 Hz, distant/off-camera residents stop skeletal animation, and seated commuters and silent speech controllers suspend idle callbacks. Fares, rent and wages still update immediately; multiple save requests are coalesced into one disk write after at most one second of processing, with a flush on desktop close.
+
+Controlled checks against commit `374ac76` used the same seeded city and fixed 60-frame simulation step. Headless median wall frame time fell from **10.733 ms to 4.196–4.499 ms** across two optimized runs (about 58–61%). P95 varied from 22.168 to 26.220 ms against a 25.593 ms baseline, so this does not establish a consistent improvement in the slowest frames. A separate 90-frame software OpenGL rendering check fell from **233.527 ms to 113.217 ms** median, with the new default Smooth settings. This latter comparison includes the quality change; it is not a prediction of browser FPS on a player's laptop. Both runs use the same populated city.
+
+Reproduce CPU measurements with `godot --headless --path . --fixed-fps 60 --script res://tools/benchmark_city.gd`; omit `--headless` for rendering. Close other heavy programs and compare identical camera, resolution and settings. `tests/performance_budget.gd` checks 400 indexed/reference traffic queries for identical results, same-frame index updates, cached atlas reuse, quality presets and on-demand passenger animation. That test is part of the browser-build workflow.
