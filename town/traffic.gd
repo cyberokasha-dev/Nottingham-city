@@ -2,6 +2,10 @@ extends Node3D
 # Lightweight UK left-hand traffic. Ambient cars are visual only and never claim road physics.
 const ROAD_X := [-140.0,-80.0,-40.0,40.0,80.0,140.0]
 const ROAD_Z := [-120.0,-60.0,16.0,80.0,140.0]
+# Signals are reserved for the busiest distributor-road junctions. Smaller streets
+# use collision-aware give-way behaviour instead of stopping at every crossing.
+const SIGNAL_X := [-40.0,40.0,140.0]
+const SIGNAL_Z := [-60.0,16.0,140.0]
 const LEVEL := -5.02
 const CYCLE := 9.0
 const GREEN_SECONDS := 4.0
@@ -40,6 +44,8 @@ func _ready() -> void:
 		lamp_materials.append(material)
 	for x in ROAD_X:
 		for z in ROAD_Z:
+			if not _has_signal_at(x,z):
+				continue
 			for vertical in [true,false]:
 				for direction in [-1.0,1.0]:
 					var head := Node3D.new()
@@ -134,6 +140,10 @@ func _process(delta: float) -> void:
 		var crossing: float = 10000.0
 		var roads: Array = ROAD_Z if vertical else ROAD_X
 		for road in roads:
+			var road_x: float = ROAD_X[item.lane] if vertical else float(road)
+			var road_z: float = float(road) if vertical else ROAD_Z[item.lane]
+			if not _has_signal_at(road_x,road_z):
+				continue
 			var ahead: float = (float(road)-distance)*direction
 			if ahead>0.0 and ahead<crossing:
 				crossing = ahead
@@ -160,6 +170,9 @@ func _process(delta: float) -> void:
 			node.position = Vector3(distance,LEVEL,ROAD_Z[item.lane]+item.offset)
 			node.rotation.y = PI/2.0 if direction>0 else -PI/2.0
 		track_vehicle(node)
+
+func _has_signal_at(x: float, z: float) -> bool:
+	return SIGNAL_X.has(x) and SIGNAL_Z.has(z)
 
 func _green(vertical: bool) -> bool:
 	return clock<GREEN_SECONDS if vertical else (clock>=HALF_CYCLE and clock<HALF_CYCLE+GREEN_SECONDS)
@@ -221,8 +234,12 @@ func allowed_travel(pos: Vector3, direction: Vector3, requested: float, half_len
 				else:
 					for z in ROAD_Z:
 						if absf(pos.z-z)<6: junction.z=z; break
-				if not _green(vertical) or _junction_busy(junction,direction,ignore):
-					travel = minf(travel,maxf(0,ahead-12.0))
+				if _has_signal_at(junction.x,junction.z):
+					if not _green(vertical) or _junction_busy(junction,direction,ignore):
+						travel = minf(travel,maxf(0,ahead-12.0))
+				elif _junction_busy(junction,direction,ignore):
+					# Unsignalised junctions keep flowing unless the conflict area is occupied.
+					travel = minf(travel,maxf(0,ahead-2.5))
 	var obstacles := nearby_vehicles(pos,half_length+requested+10)
 	query_count+=1
 	candidate_checks+=obstacles.size()
