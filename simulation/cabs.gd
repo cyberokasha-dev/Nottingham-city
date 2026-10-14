@@ -359,6 +359,9 @@ func _physics_process(delta: float) -> void:
 		var path: PackedVector3Array = car.path
 		if int(car.index)>=path.size():
 			if car.state=="pickup":
+				# Wait at a clear curb space, leaving the running lane open during PIN entry.
+				_park_at_curb(car)
+				trip.pickup_curb = car.node.global_position
 				car.state = "waiting"
 				trip.state = "waiting"
 				car.label.text = "AURORA • ARRIVED\nEnter booking PIN"
@@ -500,13 +503,13 @@ func _park_at_curb(car: Dictionary) -> void:
 	var direction: Vector3 = anchor.direction
 	var left := Vector3(direction.z,0,-direction.x)
 	var base: Vector3 = anchor.center+left*5.5
-	for step in [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6]:
-		var candidate: Vector3 = base+direction*float(step)*7.0
+	for step in [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,8,-8,10,-10,14,-14,21,-21,28,-28,35,-35,42,-42]:
+		var candidate: Vector3 = base+direction*float(step)
 		if absf(candidate.x)>155 or candidate.z< -140 or candidate.z>155: continue
 		var junction := false
 		for x in game.city.ROAD_X:
 			for z in game.city.ROAD_Z:
-				if absf(candidate.x-x)<15 and absf(candidate.z-z)<15: junction=true
+				if absf(candidate.x-x)<12 and absf(candidate.z-z)<12: junction=true
 		if junction: continue
 		if game.city.traffic.space_clear(candidate,direction,car.node):
 			car.node.global_position = candidate
