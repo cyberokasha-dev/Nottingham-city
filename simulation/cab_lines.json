@@ -1,0 +1,20 @@
+{
+  "welcome_0": "Welcome aboard Aurora. Your fare is confirmed. Settle in, and I'll take you there.",
+  "welcome_1": "Hello there. Doors closing. You can enjoy the journey, or choose skip journey on your phone.",
+  "welcome_2": "Good to see you. I'm your autonomous Aurora. No driver, no awkward small talk. Unless you fancy a chat.",
+  "traffic_0": "I'm following the signals and keeping a safe gap. If you are in a hurry, you can skip the rest of this journey.",
+  "traffic_1": "A little traffic ahead. I'll wait for a clear road. Your quoted fare stays the same.",
+  "traffic_2": "Nottingham traffic. A fine opportunity to admire the view. Shall we skip ahead? That's entirely up to you.",
+  "area_0": "Victoria Centre and Gedling are on our local network. You can search for a house number, street, park or bus stop on your phone.",
+  "area_1": "The parks have football, swings, a slide and a timed running lap. A good place to stretch your legs after the journey.",
+  "area_2": "Every council home has its own number. Visit the front door to view the rent before taking a tenancy.",
+  "help_0": "Press B to change the camera. Press J to skip the journey once the doors have closed. Your fare is only charged once.",
+  "help_1": "You can apply for work at the council office. Attend your assignment to earn wages, then pay for rent and travel in pounds.",
+  "help_2": "Buses stop for passengers on the pavement, away from junctions. Watch the number and destination before boarding.",
+  "arrival_0": "Here we are. Your journey is complete. Please step out onto the pavement. Have a lovely day.",
+  "arrival_1": "We've arrived safely. Thank you for travelling with Aurora. Mind the pavement as you step out.",
+  "arrival_2": "Destination reached. Another successful journey, and I didn't even ask you to rate my driving. Take care.",
+  "quiet_0": "Of course. I'll keep quiet for the rest of your journey.",
+  "quiet_1": "Certainly. Enjoy the view. I'll let you know when we arrive.",
+  "quiet_2": "Peace and quiet it is. My speciality."
+}

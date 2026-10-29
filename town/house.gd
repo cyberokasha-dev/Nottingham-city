@@ -1,0 +1,349 @@
+extends Node3D
+
+var architecture := "cottage"
+var neighbourhood := "City Centre"
+var variant := 0
+var roof_color := Color("34404b")
+var address := "Home"
+var house_number := 0
+var street := ""
+var rental_record := {}
+var rental_sign: Label3D
+var brick_color := Color("b46f4c")
+var roof: Node3D
+var front: Node3D
+var door: Node3D
+var interior: Node3D
+var occupied := false
+var rest_users := {}
+
+var stream_managed := false
+var stream_active := false
+var door_tween: Tween
+var exterior_built := false
+var shell: Node3D
+var detailed_meshes: Array[MeshInstance3D] = []
+var _building_exterior := false
+static var shell_materials: Dictionary = {}
+static var shell_roof: ArrayMesh
+static var shell_box: BoxMesh
+static var shell_batches:Dictionary={}
+static var batch_material:StandardMaterial3D
+
+func _ready() -> void:
+	add_to_group("enterable_houses")
+	if not stream_managed: activate()
+
+func activate() -> void:
+	if stream_active: return
+	stream_active=true
+	front=Node3D.new(); add_child(front)
+	roof=Node3D.new(); add_child(roof)
+	door=Node3D.new(); door.position=Vector3(-.88,0,6.02); add_child(door)
+	# Real entrances and walls exist immediately, independently of visual detail.
+	_solid(self,Vector3.ZERO,Vector3(10,.12,12))
+	for x in [-5,5]: _solid(self,Vector3(x,1.7,0),Vector3(.25,3.4,12))
+	_solid(self,Vector3(0,1.7,-6),Vector3(10,3.4,.25))
+	for x in [-2.95,2.95]: _solid(self,Vector3(x,1.7,6),Vector3(4.1,3.4,.25))
+	_solid(self,Vector3(0,2.95,6),Vector3(1.8,.9,.25))
+	_solid(door,Vector3(.88,1.25,0),Vector3(1.75,2.5,.13))
+	_make_shell()
+	var number := Label3D.new()
+	number.text=address; number.font_size=26; number.pixel_size=.008
+	number.position=Vector3(0,2.77,7.12); number.visibility_range_end=38
+	add_child(number)
+	rental_sign=Label3D.new()
+	rental_sign.font_size=25; rental_sign.pixel_size=.007
+	rental_sign.position=Vector3(3.3,1,7.2); rental_sign.visibility_range_end=32
+	add_child(rental_sign)
+	refresh_sign()
+
+func _shell_part(pos: Vector3, size: Vector3, color: Color) -> void:
+	if not shell_materials.has(color): shell_materials[color]=_material(color)
+	if not shell_box: shell_box=BoxMesh.new(); shell_box.size=Vector3.ONE
+	var part:=MeshInstance3D.new()
+	part.mesh=shell_box; part.material_override=shell_materials[color]
+	part.position=pos; part.scale=size
+	shell.add_child(part)
+
+func _make_shell() -> void:
+	shell=Node3D.new(); shell.name="DistantExterior"; add_child(shell)
+	var key:=architecture+str(variant%5)+brick_color.to_html()+roof_color.to_html()
+	if shell_batches.has(key):
+		var shared:=MeshInstance3D.new(); shared.mesh=shell_batches[key]; shared.material_override=batch_material; shell.add_child(shared)
+		return
+	var upper:=architecture in ["terrace","victorian","townhouse","semi"]
+	var height:=6.3 if upper else 3.4
+	for x in [-5,5]: _shell_part(Vector3(x,height/2,0),Vector3(.25,height,12),brick_color)
+	_shell_part(Vector3(0,height/2,-6),Vector3(10,height,.25),brick_color)
+	for x in [-2.95,2.95]: _shell_part(Vector3(x,height/2,6),Vector3(4.1,height,.25),brick_color)
+	_shell_part(Vector3(0,(height+2.5)/2,6),Vector3(1.8,height-2.5,.25),brick_color)
+	_shell_part(Vector3(0,1.25,6.02),Vector3(1.75,2.5,.13),[Color("274943"),Color("2f4567"),Color("6e343c"),Color("d5b76f"),Color("373940")][variant%5])
+	for x in [-3,3]: _shell_part(Vector3(x,1.8,6.23),Vector3(1.87,1.4,.045),Color("456a83"))
+	if upper:
+		for x in [-3,0,3]: _shell_part(Vector3(x,4.9,6.23),Vector3(1.43,1.5,.045),Color("456a83"))
+	var roof_y:=2.9 if upper else 0.0
+	if architecture in ["modern","townhouse"]:
+		_shell_part(Vector3(0,roof_y+3.5,0),Vector3(10.5,.22,12.5),roof_color)
+	else:
+		if not shell_roof:
+			var tool:=SurfaceTool.new(); tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var points:=[Vector3(-5.5,3.45,-6.5),Vector3(-5.5,3.45,6.5),Vector3(0,5.5,-6.5),Vector3(0,5.5,6.5),Vector3(5.5,3.45,-6.5),Vector3(5.5,3.45,6.5)]
+			for i in [0,1,2,1,3,2,2,3,4,3,5,4,0,2,4,1,5,3]: tool.add_vertex(points[i])
+			tool.generate_normals(); shell_roof=tool.commit()
+		if not shell_materials.has(roof_color):
+			shell_materials[roof_color]=_material(roof_color)
+			shell_materials[roof_color].cull_mode=BaseMaterial3D.CULL_DISABLED
+		var part:=MeshInstance3D.new(); part.mesh=shell_roof
+		part.material_override=shell_materials[roof_color]; part.position.y=roof_y
+		shell.add_child(part)
+	_batch_section(shell)
+	shell_batches[key]=shell.get_child(0).mesh
+
+func _batch_section(section:Node3D) -> void:
+	var parts:=Node3D.new(); section.add_child(parts)
+	for child in section.get_children():
+		if child is MeshInstance3D: child.reparent(parts,false)
+	var mesh:=preload("res://transport/geometry.gd").colored_mesh(parts)
+	parts.free()
+	if not batch_material:
+		batch_material=StandardMaterial3D.new(); batch_material.vertex_color_use_as_albedo=true
+		batch_material.roughness=.8; batch_material.cull_mode=BaseMaterial3D.CULL_DISABLED
+	var visual:=MeshInstance3D.new(); visual.mesh=mesh; visual.material_override=batch_material
+	section.add_child(visual)
+
+func ensure_detail() -> void:
+	activate()
+	if exterior_built: return
+	exterior_built=true; _building_exterior=true
+	_build_exterior()
+	_building_exterior=false
+	for mesh in find_children("*","MeshInstance3D",true,false):
+		if not shell.is_ancestor_of(mesh): detailed_meshes.append(mesh)
+	shell.hide()
+
+func update_detail(nearby: bool) -> void:
+	if not exterior_built: return
+	var detailed:=nearby or occupied
+	shell.visible=not detailed
+	for mesh in detailed_meshes: mesh.visible=detailed and not (occupied and front.is_ancestor_of(mesh))
+
+func _build_exterior() -> void:
+	var brick := _material(brick_color)
+	var stone := _material(Color("eee5d2"))
+	var slate := _material(roof_color)
+	var glass := _material(Color("456a83"), 0.3)
+	var floor_material := _material(Color("b69369"))
+	_box(self,Vector3(0,0,0),Vector3(10,0.12,12),floor_material,true)
+	_box(self,Vector3(-5,1.7,0),Vector3(0.25,3.4,12),brick,true)
+	_box(self,Vector3(5,1.7,0),Vector3(0.25,3.4,12),brick,true)
+	_box(self,Vector3(0,1.7,-6),Vector3(10,3.4,0.25),brick,true)
+	_box(front,Vector3(-2.95,1.7,6),Vector3(4.1,3.4,0.25),brick,true)
+	_box(front,Vector3(2.95,1.7,6),Vector3(4.1,3.4,0.25),brick,true)
+	_box(front,Vector3(0,2.95,6),Vector3(1.8,0.9,0.25),brick,true)
+	_box(front,Vector3(-0.96,1.3,6.15),Vector3(0.12,2.6,0.12),stone)
+	_box(front,Vector3(0.96,1.3,6.15),Vector3(0.12,2.6,0.12),stone)
+	_box(front,Vector3(0,2.62,6.15),Vector3(2.04,0.12,0.12),stone)
+	for x in [-3.0,3.0]:
+		_box(front,Vector3(x,1.8,6.15),Vector3(2.1,1.65,0.12),stone)
+		_box(front,Vector3(x,1.8,6.23),Vector3(1.87,1.40,0.045),glass)
+		_box(front,Vector3(x,1.8,6.27),Vector3(0.075,1.4,0.025),stone)
+		_box(front,Vector3(x,1.8,6.27),Vector3(1.9,0.075,0.025),stone)
+		_box(front,Vector3(x,0.97,6.24),Vector3(2.25,0.10,0.28),stone)
+	for side in [-1.0,1.0]:
+		for z in [-2.5,2.5]:
+			_box(self,Vector3(side*5.15,1.8,z),Vector3(0.10,1.65,2.1),stone)
+			_box(self,Vector3(side*5.23,1.8,z),Vector3(0.04,1.42,1.86),glass)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var p := [Vector3(-5.5,3.45,-6.5),Vector3(-5.5,3.45,6.5),Vector3(0,5.5,-6.5),Vector3(0,5.5,6.5),Vector3(5.5,3.45,-6.5),Vector3(5.5,3.45,6.5)]
+	for index in [0,1,2,1,3,2,2,3,4,3,5,4,0,2,4,1,5,3]:
+		surface.add_vertex(p[index])
+	surface.generate_normals()
+	var roof_mesh := MeshInstance3D.new()
+	roof_mesh.mesh = surface.commit()
+	var roof_mat := slate.duplicate()
+	roof_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	roof_mesh.material_override = roof_mat
+	roof.add_child(roof_mesh)
+	_box(roof,Vector3(2.5,4.7,-2),Vector3(0.7,2.0,0.7),brick)
+	_box(roof,Vector3(2.5,5.72,-2),Vector3(0.9,0.13,0.9),stone)
+	_box(roof,Vector3(0,2.8,7.0),Vector3(2.8,0.16,1.8),slate)
+	_box(door,Vector3(0.88,1.25,0),Vector3(1.75,2.5,0.13),_material([Color("274943"),Color("2f4567"),Color("6e343c"),Color("d5b76f"),Color("373940")][variant%5]),true)
+	_box(door,Vector3(1.56,1.1,0.10),Vector3(0.08,0.10,0.09),_material(Color("c5a66b")))
+	_box(door,Vector3(0.88,1.9,0.09),Vector3(1.25,0.60,0.05),glass)
+	_architectural_details(brick,stone,slate,glass)
+	for section in [self,front,roof,door]:
+		_batch_section(section)
+	# Interiors are instantiated only when needed; every house has its own entrance.
+	for mesh in find_children("*","MeshInstance3D",true,false):
+		if not shell.is_ancestor_of(mesh): mesh.visibility_range_end = 190.0
+
+func _architectural_details(brick: Material, stone: Material, slate: Material, glass: Material) -> void:
+	# Entrances and ground-floor collision bounds stay compatible with existing tenancies.
+	var upper := architecture in ["terrace","victorian","townhouse","semi"]
+	if upper:
+		roof.position.y = 2.9
+		for x in [-5.0,5.0]: _box(roof,Vector3(x,1.95,0),Vector3(0.25,2.9,12),brick)
+		_box(roof,Vector3(0,1.95,-6),Vector3(10,2.9,0.25),brick)
+		_box(roof,Vector3(0,1.95,6),Vector3(10,2.9,0.25),brick)
+		for x in [-3.0,0.0,3.0]:
+			_box(roof,Vector3(x,2.0,6.2),Vector3(1.65,1.75,0.12),stone)
+			_box(roof,Vector3(x,2.0,6.28),Vector3(1.43,1.5,0.04),glass)
+			_box(roof,Vector3(x,2.0,6.32),Vector3(0.065,1.5,0.03),stone)
+		_box(front,Vector3(0,3.25,6.2),Vector3(10.3,0.15,0.35),stone)
+	if architecture=="townhouse" or architecture=="modern":
+		# Replace pitched roof with a flat roof and raised parapet, not a colour swap.
+		for child in roof.get_children():
+			if child is MeshInstance3D and child.mesh is ArrayMesh: child.free()
+		_box(roof,Vector3(0,3.5,0),Vector3(10.5,0.22,12.5),slate)
+		for x in [-5.1,5.1]: _box(roof,Vector3(x,3.85,0),Vector3(0.22,0.6,12.4),brick)
+		for z in [-6.1,6.1]: _box(roof,Vector3(0,3.85,z),Vector3(10.4,0.6,0.22),brick)
+	if architecture=="villa" or architecture=="cottage":
+		var canopy := _box(front,Vector3(0,2.85,7.0),Vector3(3.2,0.16,1.7),slate)
+		canopy.rotation.z = 0.06 if architecture=="cottage" else 0.0
+		for x in [-1.4,1.4]: _box(front,Vector3(x,1.4,7.4),Vector3(0.13,2.8,0.13),stone)
+	if architecture=="victorian":
+		for x in [-3.0,3.0]:
+			_box(front,Vector3(x,0.85,6.55),Vector3(2.35,1.7,0.9),brick)
+			_box(front,Vector3(x,1.75,7.02),Vector3(2.05,1.2,0.06),glass)
+			_box(front,Vector3(x,2.46,6.55),Vector3(2.6,0.15,1.2),slate)
+	if architecture=="modern":
+		for x in [-2.4,0.0,2.4]:
+			var solar := _box(roof,Vector3(x,3.85,-1),Vector3(1.8,0.05,3),_material(Color("253c55"),0.4))
+			solar.rotation.x = 0.12
+		_box(front,Vector3(-4.9,1.75,6.2),Vector3(0.28,3.5,0.15),slate)
+	var garden := _material([Color("53724b"),Color("6a8454"),Color("49694f")][variant%3])
+	var flower := _material([Color("bf697c"),Color("e0ba69"),Color("bd9ed1")][variant%3])
+	for x in [-3.3,3.3]:
+		_box(front,Vector3(x,0.18,7.0),Vector3(2.0,0.3,0.55),stone)
+		_box(front,Vector3(x,0.38,7.0),Vector3(1.8,0.22,0.5),garden)
+		for dx in [-0.6,0.0,0.6]: _box(front,Vector3(x+dx,0.55,7.0),Vector3(0.2,0.15,0.2),flower)
+	if architecture=="semi" or architecture=="terrace":
+		for side in [-1.0,1.0]:
+			_box(front,Vector3(side*4.6,0.5,7.4),Vector3(0.18,1,1.8),brick)
+		_box(front,Vector3(0,2.84,6.45),Vector3(2.6,0.18,0.6),stone)
+
+func entrance() -> Vector3:
+	return to_global(Vector3(0,0.14,7.8))
+
+func inside_point() -> Vector3:
+	return to_global(Vector3(0,0.14,3.8))
+
+func set_inside(active: bool) -> void:
+	ensure_detail()
+	update_detail(true)
+	occupied = active
+	if active and not is_instance_valid(interior):
+		_build_interior()
+	if is_instance_valid(interior):
+		interior.visible = active
+	roof.visible = not active
+	# Cutaway front keeps the third-person camera outside the room readable.
+	for child in front.get_children():
+		if child is MeshInstance3D:
+			child.visible = not active
+
+func open_door(opened: bool) -> void:
+	ensure_detail()
+	update_detail(true)
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	door_tween=tween
+	tween.tween_property(door,"rotation:y",-PI/2 if opened else 0.0,0.25)
+	await tween.finished
+
+func _build_interior() -> void:
+	interior = Node3D.new()
+	add_child(interior)
+	var cream := _material(Color("f1eadb"))
+	var wood := _material(Color("755538"))
+	var blue := _material(Color("305a73"))
+	var white := _material(Color("d7dad6"))
+	var dark := _material(Color("222933"))
+	_box(interior,Vector3(0,0.075,0),Vector3(9.6,0.03,11.6),_material(Color("735d45")))
+	for x in range(-4,5):
+		_box(interior,Vector3(x+0.5,0.092,0),Vector3(0.018,0.002,11.6),_material(Color("51432f")))
+	_box(interior,Vector3(-4.79,1.6,0),Vector3(0.03,3.2,11.7),cream)
+	_box(interior,Vector3(4.79,1.6,0),Vector3(0.03,3.2,11.7),cream)
+	_box(interior,Vector3(0,1.6,-5.78),Vector3(9.6,3.2,0.03),cream)
+	# Living area, kitchen and sleeping area with clear walkways.
+	_box(interior,Vector3(-2.9,0.43,0.6),Vector3(2.7,0.60,1.0),blue,true)
+	_box(interior,Vector3(-2.9,0.87,0.17),Vector3(2.7,0.65,0.18),blue,true)
+	for x in [-4.15,-1.65]:
+		_box(interior,Vector3(x,0.70,0.6),Vector3(0.20,0.60,1.0),blue)
+	for x in [-3.75,-2.9,-2.05]:
+		_box(interior,Vector3(x,0.77,0.6),Vector3(0.80,0.10,0.78),_material(Color("3e718d")))
+	_box(interior,Vector3(-2.9,0.12,2.2),Vector3(3.1,0.03,3.0),_material(Color("c47d5b")))
+	_box(interior,Vector3(-2.9,0.35,2.0),Vector3(1.8,0.48,0.75),wood,true)
+	_box(interior,Vector3(-2.9,1.4,-5.68),Vector3(2.0,1.1,0.07),dark)
+	_box(interior,Vector3(3.65,0.60,-0.9),Vector3(1.65,1.1,3.7),white,true)
+	_box(interior,Vector3(3.65,1.18,-0.9),Vector3(1.75,0.08,3.8),wood)
+	_box(interior,Vector3(3.7,1.22,-0.9),Vector3(0.95,0.03,0.65),_material(Color("7e8d93")))
+	_box(interior,Vector3(3.8,1.1,-4.5),Vector3(1.25,2.0,1.3),white,true)
+	_box(interior,Vector3(-1.7,0.44,-3.8),Vector3(2.4,0.63,2.9),wood,true)
+	_box(interior,Vector3(-1.7,0.83,-3.8),Vector3(2.35,0.20,2.85),_material(Color("748b9b")))
+	_box(interior,Vector3(-1.7,0.99,-4.8),Vector3(1.7,0.18,0.55),white)
+	var light := OmniLight3D.new()
+	light.position = Vector3(0,2.8,0)
+	light.light_color = Color("fff0d8")
+	light.light_energy = 0.45
+	light.omni_range = 10.0
+	interior.add_child(light)
+
+func _material(color: Color, metallic := 0.0) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.8
+	material.metallic = metallic
+	return material
+
+func _box(parent: Node3D,pos: Vector3,size: Vector3,material: Material,solid := false) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh.mesh = box
+	mesh.material_override = material
+	mesh.position = pos
+	parent.add_child(mesh)
+	if solid and not _building_exterior:
+		_solid(mesh,Vector3.ZERO,size)
+	return mesh
+
+# Approach positions have clearance beside the furniture, not on its collider.
+func rest_approach(action: String) -> Vector3:
+	return to_global(Vector3(0,0.14,-3.8) if action == "sleep" else Vector3(-1.0,0.14,1.15))
+
+func rest_pose(action: String) -> Vector3:
+	return to_global(Vector3(-1.7,1.05,-2.65) if action == "sleep" else Vector3(-2.9,0.30,0.91))
+
+func claim_rest(action: String, actor: Node3D) -> bool:
+	if action not in ["sit","sleep"]:
+		return false
+	if is_instance_valid(rest_users.get(action)):
+		return false
+	rest_users[action] = actor
+	if not is_instance_valid(interior):
+		_build_interior()
+		interior.visible = occupied
+	return true
+
+func release_rest(action: String, actor: Node3D) -> void:
+	if rest_users.get(action) == actor:
+		rest_users.erase(action)
+
+func refresh_sign() -> void:
+	if is_instance_valid(rental_sign):
+		rental_sign.text = "HOUSE "+str(house_number)+"\n"+("TO RENT • £400/month" if str(rental_record.get("tenant",""))=="" else "RENTED • COUNCIL HOME")
+
+func _solid(parent: Node3D, pos: Vector3, size: Vector3) -> void:
+	var body:=StaticBody3D.new()
+	var collision:=CollisionShape3D.new()
+	var shape:=BoxShape3D.new()
+	shape.size=size; collision.shape=shape
+	body.position=pos; body.add_child(collision); parent.add_child(body)
+
+func deactivate() -> void:
+	if not stream_active or occupied or not rest_users.is_empty() or (is_instance_valid(door_tween) and door_tween.is_running()): return
+	for child in get_children(): child.free()
+	detailed_meshes.clear(); exterior_built=false; stream_active=false
+	front=null; roof=null; door=null; interior=null; shell=null; rental_sign=null

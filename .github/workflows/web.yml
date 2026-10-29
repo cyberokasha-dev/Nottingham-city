@@ -1,0 +1,316 @@
+name: Build and publish browser game
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-game-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot and matching web templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          curl --fail --location --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o /tmp/templates.tpz
+          unzip -q /tmp/templates.tpz 'templates/web*' -d /tmp/godot-templates
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          cp /tmp/godot-templates/templates/web* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          godot --version
+      - name: Import assets and check scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --editor --path . --import 2>&1 | tee /tmp/import.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/import.log; then exit 1; fi
+      - name: Check paid rentals, driver shifts, tickets and private bus physics
+        shell: bash
+        run: |
+          set -euo pipefail
+          for suite in city_services rental_bus easy_rentals_jobs simple_city_flow driver_shifts transport_motion robovan_fleet vehicle_bodywork mobile_controls simple_booking station_journey; do
+            timeout 120s godot --headless --path . --fixed-fps 60 --script "res://tests/${suite}.gd" 2>&1 | tee "/tmp/${suite}.log"
+            if grep -E 'SCRIPT ERROR:|ERROR:' "/tmp/${suite}.log"; then exit 1; fi
+          done
+          grep -q 'CITY_SERVICES_OK' /tmp/city_services.log
+          grep -q 'RENTAL_BUS_OK' /tmp/rental_bus.log
+          grep -q 'EASY_RENTALS_JOBS_OK' /tmp/easy_rentals_jobs.log
+          grep -q 'SIMPLE_CITY_FLOW_OK' /tmp/simple_city_flow.log
+          grep -q 'DRIVER_SHIFTS_OK' /tmp/driver_shifts.log
+          grep -q 'TRANSPORT_MOTION_OK' /tmp/transport_motion.log
+          grep -q 'ROBOVAN_FLEET_OK' /tmp/robovan_fleet.log
+          grep -q 'VEHICLE_BODYWORK_OK' /tmp/vehicle_bodywork.log
+          grep -q 'STATION_JOURNEY_OK' /tmp/station_journey.log
+      - name: Check phone menu booking, maps, fares and character controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --path . --fixed-fps 60 --script res://tests/remote_menu.gd 2>&1 | tee /tmp/remote-menu.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/remote-menu.log; then exit 1; fi
+          grep -q 'REMOTE_MENU_OK' /tmp/remote-menu.log
+      - name: Check surface Robotics Plaza, safe automatic gates and streamed details
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/robotics_plaza.gd 2>&1 | tee /tmp/robotics-plaza.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/robotics-plaza.log; then exit 1; fi
+          grep -q 'ROBOTICS_PLAZA_OK' /tmp/robotics-plaza.log
+      - name: Check saved day passes, manual Aurora driving, speed controls and streamed infill
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --path . --fixed-fps 60 --script res://tests/travel_upgrades.gd 2>&1 | tee /tmp/travel-upgrades.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/travel-upgrades.log; then exit 1; fi
+          grep -q 'TRAVEL_UPGRADES_OK' /tmp/travel-upgrades.log
+      - name: Check screen cursor, destination lists, keyboard entry and return to play
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --path . --fixed-fps 60 --script res://tests/screen_controller.gd 2>&1 | tee /tmp/screen-controller.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/screen-controller.log; then exit 1; fi
+          grep -q 'SCREEN_CONTROLLER_OK' /tmp/screen-controller.log
+      - name: Check UK traffic, junction phases and resource cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/traffic.gd 2>&1 | tee /tmp/traffic.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/traffic.log; then exit 1; fi
+          grep -q 'TRAFFIC_OK' /tmp/traffic.log
+      - name: Check compact districts, ground-level circle trains and selectable flight height
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/medium_city.gd 2>&1 | tee /tmp/medium-city.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/medium-city.log; then exit 1; fi
+          grep -q 'MEDIUM_CITY_OK' /tmp/medium-city.log
+      - name: Check circular city, civic plots, ground rail loops and housing relocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/compact_city.gd 2>&1 | tee /tmp/compact-city.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/compact-city.log; then exit 1; fi
+          grep -q 'COMPACT_CITY_OK' /tmp/compact-city.log
+      - name: Check routed buses, passengers and playable parks
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --fixed-fps 60 --script res://tests/city_transport.gd 2>&1 | tee /tmp/city-transport.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-transport.log; then exit 1; fi
+          grep -q 'CITY_TRANSPORT_OK' /tmp/city-transport.log
+      - name: Check all eight bus services keep progressing in a populated city
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --verbose --path . --fixed-fps 30 --script res://tests/city_service_continuity.gd 2>&1 | tee /tmp/city-continuity.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-continuity.log; then exit 1; fi
+          grep -q 'CITY_SERVICE_CONTINUITY_OK' /tmp/city-continuity.log
+      - name: Check street traffic stays public and paid private rentals can be entered
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/street_car.gd 2>&1 | tee /tmp/street-car.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/street-car.log; then exit 1; fi
+          grep -q 'STREET_CAR_OK' /tmp/street-car.log
+      - name: Check pounds, council rent, work, fares and Aurora bookings
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --fixed-fps 60 --script res://tests/economy_and_services.gd 2>&1 | tee /tmp/economy-services.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/economy-services.log; then exit 1; fi
+          grep -q 'ECONOMY_SERVICES_OK' /tmp/economy-services.log
+      - name: Check residents, combat, furniture, city and all six vehicles
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee /tmp/smoke.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/smoke.log; then exit 1; fi
+          grep -q 'SMOKE_OK' /tmp/smoke.log
+      - name: Check health, death, waking and spoken interactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/life_and_speech.gd 2>&1 | tee /tmp/life-speech.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/life-speech.log; then exit 1; fi
+          grep -q 'LIFE_SPEECH_OK' /tmp/life-speech.log
+      - name: Check four playable characters and meaningful scene replies
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/party_dialogue.gd 2>&1 | tee /tmp/party-dialogue.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/party-dialogue.log; then exit 1; fi
+          grep -q 'PARTY_DIALOGUE_OK' /tmp/party-dialogue.log
+      - name: Check booking recovery, safe stops, skip journey and chase cameras
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/refinements.gd 2>&1 | tee /tmp/refinements.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/refinements.log; then exit 1; fi
+          grep -q 'REFINEMENTS_OK' /tmp/refinements.log
+      - name: Check five-second signals, directed cabs, strict fares and on-board Quran
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/traffic_and_audio.gd 2>&1 | tee /tmp/traffic-audio.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/traffic-audio.log; then exit 1; fi
+          grep -q 'TRAFFIC_AUDIO_OK' /tmp/traffic-audio.log
+      - name: Check a complete Aurora journey with real city traffic and NPC cabs
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --fixed-fps 30 --script res://tests/live_service_flow.gd 2>&1 | tee /tmp/live-service.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/live-service.log; then exit 1; fi
+          grep -q 'LIVE_SERVICE_FLOW_OK' /tmp/live-service.log
+      - name: Check named Aurora, destination-later boarding, route map and impact recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/aurora_journeys.gd 2>&1 | tee /tmp/aurora-journeys.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/aurora-journeys.log; then exit 1; fi
+          grep -q 'AURORA_JOURNEYS_OK' /tmp/aurora-journeys.log
+      - name: Check districts, walk-up and hailed cabs, full buses and green-light queues
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/district_transport.gd 2>&1 | tee /tmp/district-transport.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/district-transport.log; then exit 1; fi
+          grep -q 'DISTRICT_TRANSPORT_OK' /tmp/district-transport.log
+      - name: Check loaded city budget and distant resident simulation
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s godot --headless --path . --fixed-fps 60 --script res://tests/city_load_budget.gd 2>&1 | tee /tmp/city-load.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/city-load.log; then exit 1; fi
+          grep -q 'CITY_LOAD_BUDGET_OK' /tmp/city-load.log
+      - name: Check spatial query equivalence and performance budgets
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s godot --headless --path . --script res://tests/performance_budget.gd 2>&1 | tee /tmp/performance.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/performance.log; then exit 1; fi
+          grep -q 'PERFORMANCE_BUDGET_OK' /tmp/performance.log
+      - name: Check distinct British voices, human routines and seated passengers
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/character_quality.gd 2>&1 | tee /tmp/character-quality.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/character-quality.log; then exit 1; fi
+          grep -q 'CHARACTER_QUALITY_OK' /tmp/character-quality.log
+      - name: Check autonomous flights, safe landings and simple transport booking
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/air_taxis.gd 2>&1 | tee /tmp/air-taxis.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/air-taxis.log; then exit 1; fi
+          grep -q 'AIR_TAXIS_OK' /tmp/air-taxis.log
+      - name: Check level station access, cab bays and station helipads
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --fixed-fps 30 --script res://tests/station_access.gd 2>&1 | tee /tmp/station-access.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/station-access.log; then exit 1; fi
+          grep -q 'STATION_ACCESS_OK' /tmp/station-access.log
+          timeout 180s godot --headless --path . --fixed-fps 30 --script res://tests/station_journey.gd 2>&1 | tee /tmp/station-journey.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/station-journey.log; then exit 1; fi
+          grep -q 'STATION_JOURNEY_OK' /tmp/station-journey.log
+      - name: Check the ground-level rail bed and platforms are solid
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --script res://tests/rail_deck.gd 2>&1 | tee /tmp/rail-deck.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/rail-deck.log; then exit 1; fi
+          grep -q 'RAIL_DECK_OK' /tmp/rail-deck.log
+      - name: Check phone-controller input bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 60s godot --headless --path . --fixed-fps 60 --script res://tests/phone_link.gd 2>&1 | tee /tmp/phone-link.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/phone-link.log; then exit 1; fi
+          grep -q 'PHONE_LINK_OK' /tmp/phone-link.log
+      - name: Export browser game
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          godot --headless --path . --export-release Web build/web/index.html 2>&1 | tee /tmp/export.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/export.log; then exit 1; fi
+          test -s build/web/index.html
+          test -s build/web/index.wasm
+          test -s build/web/index.pck
+          cp LICENSE.md build/web/LICENSE.txt
+          cp player/models/QUATERNIUS-LICENSE.txt build/web/CHARACTER-LICENSE.txt
+          cp player/models/ANIMATION-LICENSE.txt build/web/ANIMATION-LICENSE.txt
+          cp player/models/SOURCES.md build/web/CHARACTER-SOURCES.md
+          cp vehicles/models/KENNEY-LICENSE.txt build/web/VEHICLE-LICENSE.txt
+          cp vehicles/models/SOURCES.md build/web/VEHICLE-SOURCES.md
+          cp actors/voices/NOTICE.md build/web/VOICE-CREDITS.md
+          cp transport/SOURCES.md build/web/TRANSPORT-SOURCES.md
+          cp transport/recitations/NOTICE.md build/web/RECITATION-CREDITS.md
+          cp actors/voices/ALBA-MODEL-CARD.md build/web/ALBA-MODEL-CARD.md
+          cp actors/voices/JOE-MODEL-CARD.md build/web/JOE-MODEL-CARD.md
+          cp actors/voices/NORTHERN-ENGLISH-MALE-MODEL-CARD.md build/web/NORTHERN-ENGLISH-MALE-MODEL-CARD.md
+          cp actors/voices/CORI-MODEL-CARD.md build/web/CORI-MODEL-CARD.md
+          touch build/web/.nojekyll
+      - name: Set up Node for the real browser controller check
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check private account recovery and concurrent save protection
+        run: node --test supabase/tests/city_account.test.mjs
+      - name: Install browser test tools
+        run: |
+          npm install --prefix /tmp/controller-browser playwright@1.62.1
+          /tmp/controller-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Check controller commands inside the exported Godot game
+        env:
+          NODE_PATH: /tmp/controller-browser/node_modules
+        run: timeout 180s node tools/check_browser_controller.cjs
+      - name: Check phone play, multitouch, rotation and direct booking
+        env:
+          NODE_PATH: /tmp/controller-browser/node_modules
+        run: timeout 210s node tools/check_browser_mobile.cjs
+      - name: Save downloadable browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nottingham-City-Web
+          path: build/web
+          retention-days: 14
+      - name: Prepare GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Publish browser game
+        id: deployment
+        uses: actions/deploy-pages@v4
