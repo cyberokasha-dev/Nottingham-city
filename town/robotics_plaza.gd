@@ -29,14 +29,14 @@ func _ready() -> void:
 		var gate:=GATE.new();gate.position.z=z
 		if z>0:gate.rotation.y=PI
 		add_child(gate);gates.append(gate)
-	_sign(self,"FUTURE WORKS\nROBOTICS PLAZA",Vector3(0,6.8,-55),48,PI,.018)
+	_sign(self,"ROBOTICS & AUTONOMOUS MOBILITY\nSERVICE PLAZA",Vector3(0,6.8,-55),48,PI,.018)
 	_sign(self,"ROBOTICS PLAZA",Vector3(0,6.2,55),36,0,.018)
 	_directory()
 	# Empty robot docks are reserved, with no background robot simulation yet.
 	details=[
 		{"kind":"dock","point":Vector3(-43,0,-19),"title":"ROBOT 01 • DOCK","robot":true},
-		{"kind":"dock","point":Vector3(-43,0,9),"title":"ROBOT 02 • DOCK"},
-		{"kind":"workshop","point":Vector3(39,0,29),"title":"WORKSHOP • FUTURE PHASE"},
+		{"kind":"dock","point":Vector3(-43,0,9),"title":"ROBOT 02 • DOCK","robot":true},
+		{"kind":"workshop","point":Vector3(39,0,29),"title":"LIVE EV SERVICE HALL"},
 		{"kind":"court","point":Vector3(19,0,-15),"title":"DEMONSTRATION COURT"},
 		{"kind":"garden","point":Vector3(-57,0,-39),"title":""},
 		{"kind":"garden","point":Vector3(55,0,-38),"title":""},
@@ -92,7 +92,7 @@ func nearest(person:Node3D) -> Dictionary:
 
 func use(person:Node3D) -> void:
 	if nearest(person).is_empty():return
-	person._notify("Robotics Plaza • open demonstration court, two reserved robot docks, seating gardens. Vehicle and machinery workshop coming in a later phase.")
+	person._notify("Robotics Plaza • two active robot docks, four autonomous EV charging bays, live diagnostics and repairs. The Aurora/Robovan fleet and Skylink helicopters visit on service cycles; Route 61 stops at the charging interchange.")
 
 func _process(delta:float) -> void:
 	clock+=delta
@@ -117,9 +117,9 @@ func _build_detail(detail:Dictionary) -> void:
 		"garden":_garden(parts)
 		"seating":_seating(parts)
 	if not detail.title.is_empty():
-		var sign_point:=Vector3(0,.12,9) if detail.kind=="dock" else Vector3(0,.12,16)
+		var sign_point:=Vector3(0,3.4,16) if detail.kind=="workshop" else (Vector3(0,.12,9) if detail.kind=="dock" else Vector3(0,.12,16))
 		var label:=_sign(node,detail.title,sign_point,32,0,.014)
-		label.rotation.x=-PI/2
+		if detail.kind!="workshop": label.rotation.x=-PI/2
 	G.merge(parts)
 	if detail.kind=="dock" and bool(detail.get("robot",false)):
 		var robot_scene := load("res://town/vbot.glb") as PackedScene
@@ -155,15 +155,41 @@ func _dock(parts:Node3D) -> void:
 	for x in [-1.7,1.7]:G.box(parts,Vector3(x,0,0),Vector3(.1,.025,3),chalk)
 
 func _workshop(parts:Node3D) -> void:
+	# Four full-size charging slots under a high, open-sided service canopy.
 	G.box(parts,Vector3(0,-.045,0),Vector3(46,.03,32),dark)
-	for x in [-22.0,22.0]:G.box(parts,Vector3(x,-.018,0),Vector3(.18,.025,31),mint)
-	for z in [-15.0,15.0]:G.box(parts,Vector3(0,-.018,z),Vector3(44,.025,.18),mint)
-	for x in [-14.0,0.0,14.0]:
-		for side in [-1.0,1.0]:G.box(parts,Vector3(x+side*5,.01,0),Vector3(.1,.025,20),chalk)
-		G.box(parts,Vector3(x,.01,-10),Vector3(10,.025,.1),chalk)
-	_sign(parts,"VEHICLE & MACHINERY WORKSHOP\nReserved for a later phase",Vector3(0,2.2,15.8),30,0,.017)
 	for x in [-22.0,22.0]:
-		G.tube(parts,Vector3(x,0,15),Vector3(x,3,15),.1,chalk)
+		for z in [-15.0,15.0]:
+			G.tube(parts,Vector3(x,0,z),Vector3(x,6.1,z),.18,chalk)
+			G.box(parts,Vector3(x,.12,z),Vector3(1.0,.24,1.0),mint)
+	for x in [-22.0,0.0,22.0]:
+		G.tube(parts,Vector3(x,6.05,-15),Vector3(x,6.05,15),.14,chalk)
+	G.box(parts,Vector3(0,6.15,0),Vector3(46,.28,32),dark)
+	for z in [-15.0,15.0]:G.box(parts,Vector3(0,-.018,z),Vector3(44,.025,.18),mint)
+	for x in [-22.0,22.0]:G.box(parts,Vector3(x,-.018,0),Vector3(.18,.025,31),mint)
+	var slot_x:Array[float]=[-15.0,-5.0,5.0,15.0]
+	for i in range(slot_x.size()):
+		var x:float=slot_x[i]
+		# Each marked bay is 9 m wide and includes a charge receiver ring.
+		G.box(parts,Vector3(x,.012,0),Vector3(8.8,.025,23.0),G.material(Color("40535c")))
+		for side in [-1.0,1.0]:G.box(parts,Vector3(x+side*4.35,.035,0),Vector3(.11,.03,22.5),mint)
+		G.box(parts,Vector3(x,.035,-11.2),Vector3(8.7,.03,.12),chalk)
+		G.box(parts,Vector3(x,.035,11.2),Vector3(8.7,.03,.12),chalk)
+		_disc(parts,Vector3(x,.07,0),3.25,.045,dark)
+		_ring(parts,Vector3(x,.105,0),2.75,.22,mint)
+		# Charging column and articulated diagnostic arm; these are visual, not solid obstacles.
+		G.box(parts,Vector3(x+3.25,1.55,-5.4),Vector3(.65,3.0,.85),dark)
+		G.box(parts,Vector3(x+3.25,2.55,-4.95),Vector3(.5,.38,.08),mint)
+		G.tube(parts,Vector3(x+3.25,2.75,-5.4),Vector3(x+1.8,3.8,-3.0),.14,chalk)
+		G.sphere(parts,Vector3(x+1.8,3.8,-3.0),Vector3(.34,.34,.34),mint)
+		G.tube(parts,Vector3(x+1.8,3.8,-3.0),Vector3(x+.7,3.15,-1.0),.11,chalk)
+		G.box(parts,Vector3(x+.7,3.05,-.9),Vector3(.7,.22,.45),mint)
+		_sign(parts,"BAY %02d\nAUTONOMOUS EV" % [i+1],Vector3(x,4.0,8.2),17,0,.012)
+	# Rear diagnostics bench and overhead service lighting.
+	G.box(parts,Vector3(0,1.05,13.0),Vector3(18,1.8,1.2),dark)
+	G.box(parts,Vector3(0,2.05,12.35),Vector3(12,.45,.12),mint)
+	for x in [-15.0,-5.0,5.0,15.0]:
+		G.box(parts,Vector3(x,5.9,0),Vector3(.12,.09,21),mint)
+	_sign(parts,"ROBOTICS & EV SERVICE HALL\n4 charging bays • repair arms • diagnostics",Vector3(0,5.2,15.7),22,0,.014)
 
 func _court(parts:Node3D) -> void:
 	_disc(parts,Vector3(0,-.045,0),21,.025,G.material(Color("88aeb1")))

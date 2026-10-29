@@ -58,6 +58,7 @@ func _ready() -> void:
 	add_child(places)
 	traffic = preload("res://town/traffic.gd").new()
 	traffic.name = "UKTraffic"
+	traffic.game = get_parent().get_parent()
 	add_child(traffic)
 	transport = preload("res://transport/network.gd").new()
 	transport.traffic = traffic

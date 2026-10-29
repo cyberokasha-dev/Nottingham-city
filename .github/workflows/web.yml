@@ -73,6 +73,9 @@ jobs:
           timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/robotics_plaza.gd 2>&1 | tee /tmp/robotics-plaza.log
           if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/robotics-plaza.log; then exit 1; fi
           grep -q 'ROBOTICS_PLAZA_OK' /tmp/robotics-plaza.log
+          timeout 120s godot --headless --path . --fixed-fps 60 --script res://tests/robotics_fleet_service.gd 2>&1 | tee /tmp/robotics-fleet-service.log
+          if grep -E 'SCRIPT ERROR:|ERROR:' /tmp/robotics-fleet-service.log; then exit 1; fi
+          grep -q 'ROBOTICS_FLEET_SERVICE_OK' /tmp/robotics-fleet-service.log
       - name: Check saved day passes, manual Aurora driving, speed controls and streamed infill
         shell: bash
         run: |

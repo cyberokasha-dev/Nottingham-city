@@ -26,6 +26,13 @@ var rider_start := Vector3.ZERO
 var cabin: Node3D
 var passenger_transfers := 0
 var loading: Label3D
+var robotics_service_after:=45.0
+var robotics_service_interval:=300.0
+var robotics_service_bay:=-1
+var robotics_service_clock:=0.0
+var robotics_service_index:=0
+var robotics_service_path:PackedVector3Array=PackedVector3Array()
+var robotics_outbound_path:PackedVector3Array=PackedVector3Array()
 
 func _ready() -> void:
 	add_to_group("city_buses")
@@ -58,6 +65,67 @@ func _ready() -> void:
 	find_next_stop()
 	preload("res://transport/vehicle_motion.gd").setup(self,model)
 
+func _begin_robotics_service() -> bool:
+	var cabs=manager.economy.game.cabs
+	if not is_instance_valid(cabs):return false
+	var bay_index:int=cabs._free_robotics_bay()
+	if bay_index<0:
+		robotics_service_after=manager.elapsed+30.0
+		return false
+	var bay_point:Vector3=cabs.robotics_bays[bay_index].point
+	var path:PackedVector3Array=cabs._robotics_path_to_bay(global_position,bay_point,global_basis.z)
+	if path.is_empty():
+		robotics_service_after=manager.elapsed+30.0
+		return false
+	if path[0].distance_to(global_position)>.05:path.insert(0,global_position)
+	cabs.robotics_bays[bay_index]["vehicle"]=self
+	robotics_service_bay=bay_index
+	robotics_outbound_path=path.duplicate()
+	robotics_service_path=path
+	robotics_service_index=0;robotics_service_clock=0.0;speed=0.0
+	show();collider.get_child(0).set_deferred("disabled",false)
+	state="robot_service_travel"
+	loading.text="ROBOTICS • EN ROUTE"
+	return true
+
+func _release_robotics_service_bay() -> void:
+	var cabs=manager.economy.game.cabs
+	if is_instance_valid(cabs) and robotics_service_bay>=0 and robotics_service_bay<cabs.robotics_bays.size() and cabs.robotics_bays[robotics_service_bay].get("vehicle")==self:
+		cabs.robotics_bays[robotics_service_bay]["vehicle"]=null
+	robotics_service_bay=-1
+
+func _advance_robotics_service(delta:float) -> void:
+	var cabs=manager.economy.game.cabs
+	if not is_instance_valid(cabs):
+		_release_robotics_service_bay();state="moving";return
+	if state=="robot_service_charge":
+		speed=0.0;robotics_service_clock+=delta
+		if robotics_service_clock>=22.0:
+			var reverse:=PackedVector3Array([global_position])
+			for i in range(robotics_outbound_path.size()-2,-1,-1):
+				if reverse[-1].distance_to(robotics_outbound_path[i])>.05:reverse.append(robotics_outbound_path[i])
+			robotics_service_path=reverse;robotics_service_index=0;state="robot_service_return"
+			loading.text="ROBOTICS • RETURNING TO ROUTE"
+		return
+	if robotics_service_path.is_empty() or robotics_service_index>=robotics_service_path.size():
+		if state=="robot_service_travel":
+			if robotics_service_bay>=0 and robotics_service_bay<cabs.robotics_bays.size() and cabs.robotics_bays[robotics_service_bay].get("vehicle")==self:
+				global_position=cabs.robotics_bays[robotics_service_bay].point
+				robotics_service_clock=0.0;speed=0.0;state="robot_service_charge"
+				loading.text="ROBOTICS • CHARGING"
+			else:
+				_release_robotics_service_bay();state="moving";robotics_service_after=manager.elapsed+30.0
+		elif state=="robot_service_return":
+			_release_robotics_service_bay()
+			state="moving";speed=0.0;robotics_service_index=0
+			robotics_service_path=PackedVector3Array();robotics_outbound_path=PackedVector3Array()
+			robotics_service_after=manager.elapsed+robotics_service_interval
+			loading.text="£2 • PUBLIC SERVICE"
+		return
+	var mover:Dictionary={"node":self,"path":robotics_service_path,"index":robotics_service_index,"speed":speed,"half_length":6.5,"body_size":Vector3(2.5,4.2,10.2),"fast":false}
+	cabs._advance_route(mover,delta)
+	robotics_service_index=int(mover.index);speed=float(mover.speed)
+
 func find_next_stop() -> void:
 	next_stop = 0
 	for i in range(route.stops.size()):
@@ -85,9 +153,13 @@ func advance(delta: float) -> void:
 		else:
 			rider.visual.global_rotation.y=rotation.y+PI
 	get_node("ServiceAudio").set_motion(speed,"bus" if visible else "silent")
+	if state in ["robot_service_travel","robot_service_charge","robot_service_return"]:
+		_advance_robotics_service(delta)
+		return
 	if state=="depot":
 		speed = 0
 		if manager.elapsed>=next_departure:
+			if manager.elapsed>=robotics_service_after and not is_instance_valid(rider) and _begin_robotics_service():return
 			show()
 			collider.get_child(0).set_deferred("disabled",false)
 			state = "moving"

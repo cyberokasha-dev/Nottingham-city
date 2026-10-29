@@ -17,7 +17,10 @@ func _ready() -> void:
  var sites=W.helipads()
  for i in range(sites.size()):
   var point:=Vector3(sites[i].x,-5.02,sites[i].y)
-  var pad={"name":str(game.city.ATLAS.at(point).name)+" Helipad "+str(i+1),"point":point}
+  var pad_name:=str(game.city.ATLAS.at(point).name)+" Helipad "+str(i+1)
+  if sites[i]==Vector2(-106,-350):pad_name="Robotics Plaza • Fleet Helipad"
+  elif sites[i]==Vector2(-106,-365):pad_name="Robotics Plaza • Autonomous Service Stand"
+  var pad={"name":pad_name,"point":point}
   pads.append(pad)
   economy.locations.append(pad.duplicate())
   var stand:=Node3D.new()
@@ -29,7 +32,7 @@ func _ready() -> void:
   text.pixel_size=.045
   var sign:=G.label(stand,str(pad.name)+"\nE near helicopter • book / board",Vector3(0,.5,5.2),15)
   sign.billboard=BaseMaterial3D.BILLBOARD_ENABLED
-  if i not in [0,1,8,10,11,12,13,14]: continue
+  if i not in [0,1,8,10,12,13,14,15]: continue
   var fleet_index:=cars.size()
   var node:=Node3D.new()
   node.name="Helicopter"+str(i+1)
@@ -50,11 +53,16 @@ func _ready() -> void:
   body.add_child(collision)
   node.add_child(body)
   node.add_child(preload("res://simulation/service_audio.gd").new())
-  cars.append({"node":node,"model":model,"cab_id":"HL-%03d" % (fleet_index+1),"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"rotor_speed":0.0,"door":0.0,"clock":0.0,"home":point,"landing":point,"source":point,"cruise":22.0+float(fleet_index%3)*4,"normal_cruise":22.0+float(fleet_index%3)*4,"high_flight":false,"corridor":false,"npc_people":[],"fast":false})
+  cars.append({"node":node,"model":model,"cab_id":"HL-%03d" % (fleet_index+1),"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"rotor_speed":0.0,"door":0.0,"clock":0.0,"home":point,"landing":point,"source":point,"cruise":22.0+float(fleet_index%3)*4,"normal_cruise":22.0+float(fleet_index%3)*4,"high_flight":false,"corridor":false,"npc_people":[],"fast":false,"service_after":70.0+float(fleet_index)*75.0,"service_interval":300.0+float(fleet_index%4)*30.0})
  # Allocate each commuter's starting wallet once, before any trip can earn a fare.
  for i in range(cars.size()):
   for side in [-1,1]:
    var person:=Node.new();economy.register(person,"air_commuter/"+str(i)+str(side),20000);person.free()
+func _robotics_service_stand() -> Dictionary:
+ for pad in pads:
+  if str(pad.name)=="Robotics Plaza • Autonomous Service Stand": return pad
+ return {}
+
 func quote(person: Node3D, destination: Vector3) -> int:
  var key:String=economy.key_for(person)
  var origin:Vector3=bookings[key].pickup if bookings.has(key) else person.global_position
@@ -288,6 +296,20 @@ func _physics_process(delta: float) -> void:
    bookings.erase(key); car.booking=""
    _set_flight(car,car.landing,"returning")
    continue
+  if car.state=="robot_service_dwell":
+   car.speed=0.0;car.clock=float(car.clock)+delta
+   if car.clock>=20.0:
+    _set_flight(car,car.home,"robot_service_return")
+    _label(car,"ROBOTICS • RETURNING TO PAD")
+   continue
+  if car.state=="idle" and elapsed>=float(car.get("service_after",INF)) and car.booking=="" and not car.node.has_meta("private_owner") and (not is_instance_valid(game.services) or (not game.services.manual(car.node) and not game.services.dispatch.ready_vehicle(car.node))):
+   var service_stand:=_robotics_service_stand()
+   if not service_stand.is_empty() and car.home.distance_to(service_stand.point)>=20.0:
+    _set_flight(car,service_stand.point,"robot_service")
+    _label(car,"ROBOTICS • EN ROUTE")
+    continue
+   elif car.home.distance_to(service_stand.get("point",car.home))<20.0:
+    car.service_after=elapsed+float(car.get("service_interval",300.0))
   if car.state=="waiting":
    trip.wait=float(trip.wait)+delta
    if trip.person.get_meta("cab_waiting",false) and trip.person.global_position.distance_to(car.node.position)<=4.6:board_near(trip.person)
@@ -300,7 +322,7 @@ func _physics_process(delta: float) -> void:
    if car.clock>=3:
     if trip.destination.has("point"): _depart(car,trip)
     else: car.state="awaiting_destination"; trip.state="awaiting_destination"
-  elif car.state in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup"]:
+  elif car.state in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup","robot_service","robot_service_return"]:
    car.clock=float(car.clock)+delta
    if car.clock<.7: continue
    if not car.corridor:
@@ -310,6 +332,13 @@ func _physics_process(delta: float) -> void:
    if int(car.index)>=car.path.size():
     if car.state=="pickup": car.state="waiting";car.speed=0.0; trip.state="waiting"
     elif car.state=="returning": car.state="idle"
+    elif car.state=="robot_service":
+     car.state="robot_service_dwell";car.speed=0.0;car.clock=0.0;car.corridor=false
+     _label(car,"CONNECTED • CHARGING")
+    elif car.state=="robot_service_return":
+     car.state="idle";car.speed=0.0;car.corridor=false
+     car.service_after=elapsed+float(car.get("service_interval",300.0))
+     _label(car,"AVAILABLE • CHARGED")
     elif car.state=="job_pickup": game.services.work.arrived(car,"Helicopter")
     elif car.state=="rental_pickup": game.services.private_hire.arrived(car)
     else: _finish(car)
@@ -340,7 +369,7 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
  for car in cars:
   preload("res://transport/vehicle_motion.gd").render(car.node,car.model)
-  var moving:bool=car.state in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup"]
+  var moving:bool=car.state in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup","robot_service","robot_service_return"]
   car.rotor_speed=move_toward(float(car.rotor_speed),34.0 if moving else 0.0,delta*18)
   car.model.get_meta("rotor").rotation.y+=float(car.rotor_speed)*delta
   car.model.get_meta("tail_rotor").rotation.x+=float(car.rotor_speed)*delta*1.6
@@ -382,7 +411,7 @@ func _corridor_free(own: Dictionary) -> bool:
  var a:=Vector2(own.source.x,own.source.z)
  var b:=Vector2(own.landing.x,own.landing.z)
  for other in cars:
-  if other.node==own.node or not other.get("corridor",false) or other.state not in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup"]: continue
+  if other.node==own.node or not other.get("corridor",false) or other.state not in ["pickup","dropoff","returning","npc","job_pickup","rental_pickup","robot_service","robot_service_return"]: continue
   if absf(float(own.cruise)-float(other.cruise))>3.3: continue
   var c:=Vector2(other.source.x,other.source.z)
   var d:=Vector2(other.landing.x,other.landing.z)

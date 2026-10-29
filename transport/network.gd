@@ -26,6 +26,8 @@ func _ready() -> void:
 			bus.route = route
 			bus.distance = float(route.length)*i/2.0
 			bus.set_meta("quran_seed",buses.size())
+			bus.robotics_service_after=240.0+float(buses.size())*90.0
+			bus.robotics_service_interval=900.0+float(buses.size()%4)*90.0
 			add_child(bus)
 			buses.append(bus)
 	for bus in buses:

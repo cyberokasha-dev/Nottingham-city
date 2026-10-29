@@ -1,6 +1,8 @@
 extends Node3D
 # Aurora cars and Robovans share dispatch, traffic, ranks and one booking per customer.
 const F = preload("res://vehicles/vehicle_factory.gd")
+const ROBOTICS_ROAD_ENTRY := Vector3(-60.0,-5.02,-437.2)
+const ROBOTICS_ENTRY := Vector3(-40.0,-5.02,-422.0)
 var game: Node3D
 var economy: Node
 var graph := AStar3D.new()
@@ -12,11 +14,15 @@ var npc_clock := 0.0
 var elapsed := 0.0
 var last_notice := {}
 var ranks: Array[Dictionary] = []
+var robotics_bays: Array[Dictionary] = []
 
 func _ready() -> void:
 	_build_lane_graph()
 	ranks = game.city.districts.duplicate(true)
 	_build_ranks()
+	# Four separated full-size bays align with the physical pads inside Robotics Plaza.
+	for x in [9.0,19.0,29.0,39.0]:
+		robotics_bays.append({"point":Vector3(x,-5.02,-321.0),"vehicle":null})
 	for i in range(ranks.size()*2+6):
 		var model := Node3D.new()
 		var kind:="Robovan" if i>=12 or i in [6,8,9,11] else "Aurora"
@@ -53,7 +59,47 @@ func _ready() -> void:
 		shape.position.y = 1.35 if kind=="Robovan" else .9
 		body.add_child(shape)
 		model.add_child(body)
-		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label,"kind":kind,"cab_id":("RV-%03d" if kind=="Robovan" else "AR-%03d") % (i+1),"half_length":3.15 if kind=="Robovan" else 2.5,"body_size":box.size,"rank":rank_index,"home_slot":model.position,"idle_clock":0.0,"fast":false,"manual":false})
+		cars.append({"node":model,"booking":"","state":"idle","path":PackedVector3Array(),"index":0,"speed":0.0,"label":label,"kind":kind,"cab_id":("RV-%03d" if kind=="Robovan" else "AR-%03d") % (i+1),"half_length":3.15 if kind=="Robovan" else 2.5,"body_size":box.size,"rank":rank_index,"home_slot":model.position,"idle_clock":0.0,"fast":false,"manual":false,"service_after":70.0+float(i)*45.0,"service_clock":0.0,"service_bay":-1})
+
+func _free_robotics_bay() -> int:
+	for i in range(robotics_bays.size()):
+		if not is_instance_valid(robotics_bays[i].get("vehicle")):
+			return i
+	return -1
+
+func _robotics_inner_points(bay_point:Vector3) -> PackedVector3Array:
+	# A shared one-way aisle enters the south gate and skirts the demonstration court.
+	return PackedVector3Array([
+		ROBOTICS_ENTRY,
+		Vector3(-32.0,-5.02,-418.0),
+		Vector3(-22.0,-5.02,-412.0),
+		Vector3(-15.0,-5.02,-405.0),
+		Vector3(-15.0,-5.02,-396.0),
+		Vector3(-25.0,-5.02,-382.0),
+		Vector3(-30.0,-5.02,-365.0),
+		Vector3(-30.0,-5.02,-350.0),
+		Vector3(-20.0,-5.02,-340.0),
+		Vector3(-5.0,-5.02,-330.0),
+		bay_point
+	])
+
+func _robotics_path_to_bay(from:Vector3,bay_point:Vector3,facing:Vector3=Vector3.ZERO) -> PackedVector3Array:
+	# Join the lane graph at the real road edge, then follow the short access spur to the gate.
+	# The gate itself sits 15 m inside the road edge, so it is not a graph destination.
+	var path:=_road_path(from,ROBOTICS_ROAD_ENTRY,facing)
+	if path.is_empty():return PackedVector3Array()
+	if path[-1].distance_to(ROBOTICS_ROAD_ENTRY)>5.0:return PackedVector3Array()
+	if path[-1].distance_to(ROBOTICS_ROAD_ENTRY)>.05:path.append(ROBOTICS_ROAD_ENTRY)
+	if path[-1].distance_to(ROBOTICS_ENTRY)>.05:path.append(ROBOTICS_ENTRY)
+	var inside:=_robotics_inner_points(bay_point)
+	for i in range(1,inside.size()):path.append(inside[i])
+	return path
+
+func _release_robotics_bay(car:Dictionary) -> void:
+	var index:=int(car.get("service_bay",-1))
+	if index>=0 and index<robotics_bays.size() and robotics_bays[index].get("vehicle")==car.node:
+		robotics_bays[index]["vehicle"]=null
+	car.service_bay=-1
 
 func curb(point: Vector3) -> Vector3:
 	var best:=Vector3.ZERO; var gap:=INF
@@ -553,6 +599,18 @@ func _physics_process(delta: float) -> void:
 		if car.state=="idle":
 			_doors(car,0.0)
 			car.idle_clock = float(car.idle_clock)+delta
+			if float(car.get("service_after",INF))<=elapsed and not car.node.has_meta("private_owner") and (not is_instance_valid(game.services) or (not game.services.manual(car.node) and not game.services.dispatch.ready_vehicle(car.node))):
+				var scheduled_bay_index:=_free_robotics_bay()
+				if scheduled_bay_index>=0:
+					var bay_point:Vector3=robotics_bays[scheduled_bay_index].point
+					var service_path:=_robotics_path_to_bay(car.node.global_position,bay_point,car.node.global_basis.z)
+					if not service_path.is_empty():
+						robotics_bays[scheduled_bay_index]["vehicle"]=car.node
+						car.service_bay=scheduled_bay_index
+						car.path=service_path;car.index=0;car.speed=0.0;car.service_clock=0.0;car.state="robot_service_travel"
+						_branding(car,"ROBOTICS • EN ROUTE")
+						continue
+					car.service_after=elapsed+25.0
 			if float(car.idle_clock)>8 and car.node.global_position.distance_to(car.home_slot)>9 and (not is_instance_valid(game.services) or (not game.services.manual(car.node) and not game.services.dispatch.ready_vehicle(car.node))):
 				var home_path := path_between(car.node.global_position,car.home_slot,car.node.global_basis.z)
 				if not home_path.is_empty():
@@ -563,6 +621,46 @@ func _physics_process(delta: float) -> void:
 			continue
 		if car.state=="returning":
 			_return_to_rank(car,delta)
+			continue
+		if car.state in ["robot_service_travel","robot_service_exit","robot_service_return"]:
+			if car.path.is_empty() or int(car.index)>=car.path.size():
+				if car.state=="robot_service_travel":
+					var travel_bay_index:=int(car.get("service_bay",-1))
+					if travel_bay_index<0 or travel_bay_index>=robotics_bays.size() or robotics_bays[travel_bay_index].get("vehicle")!=car.node:
+						_release_robotics_bay(car);car.state="idle";car.service_after=elapsed+30.0
+					else:
+						car.node.global_position=robotics_bays[travel_bay_index].point
+						car.speed=0.0;car.service_clock=0.0;car.state="robot_service_charge"
+						car.node.get_node("ServiceAudio").set_motion(0,"electric")
+						_branding(car,"ROBOTICS • CHARGING")
+				elif car.state=="robot_service_exit":
+					var home_path:=_road_path(ROBOTICS_ENTRY,car.home_slot,Vector3(0,0,-1))
+					if not home_path.is_empty():
+						car.path=home_path;car.index=0;car.state="robot_service_return"
+						_branding(car,"ROBOTICS • RETURNING TO RANK")
+					else:
+						_release_robotics_bay(car);car.state="idle";car.service_after=elapsed+35.0
+				else:
+					_release_robotics_bay(car);car.state="idle";car.speed=0.0;car.idle_clock=0.0
+					car.path=PackedVector3Array();car.index=0
+					car.service_after=elapsed+900.0+float(int(car.get("rank",0))%4)*30.0
+					_branding(car,"AVAILABLE • CHARGED")
+			else:
+				_advance_route(car,delta)
+			continue
+		if car.state=="robot_service_charge":
+			car.speed=0.0;car.service_clock=float(car.service_clock)+delta
+			if float(car.service_clock)>=22.0:
+				var charge_bay_index:=int(car.get("service_bay",-1))
+				if charge_bay_index<0 or charge_bay_index>=robotics_bays.size():
+					_release_robotics_bay(car);car.state="idle";car.service_after=elapsed+30.0
+				else:
+					var inside:=_robotics_inner_points(robotics_bays[charge_bay_index].point)
+					var exit_path:=PackedVector3Array([car.node.global_position])
+					for i in range(inside.size()-2,-1,-1):
+						if exit_path[-1].distance_to(inside[i])>.05:exit_path.append(inside[i])
+					car.path=exit_path;car.index=0;car.state="robot_service_exit"
+					_branding(car,"ROBOTICS • LEAVING CHARGER")
 			continue
 		if not bookings.has(car.booking):
 			car.state = "idle"

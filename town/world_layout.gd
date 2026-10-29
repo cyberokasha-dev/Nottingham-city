@@ -53,6 +53,9 @@ static func helipads() -> Array[Vector2]:
 	if not pad_cache.is_empty(): return pad_cache
 	# Core and neighbourhood pads, plus one safe landing pad beside every station entrance.
 	var sites:Array[Vector2]=[Vector2(-110,-90),Vector2(110,-90),Vector2(-220,-90),Vector2(220,-90),Vector2(110,-22),Vector2(-110,48),Vector2(-110,110),Vector2(110,110),Vector2(-220,110),Vector2(-380,-350)]
+	# Two separated pads sit just outside the west boundary: one fleet berth and one visiting-aircraft service stand.
+	sites.append(Vector2(-106,-350))
+	sites.append(Vector2(-106,-365))
 	sites.append_array(station_pads())
 	pad_cache=sites
 	return pad_cache

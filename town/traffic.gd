@@ -13,6 +13,7 @@ var signals: Array[Dictionary] = []
 var lamp_materials: Array[StandardMaterial3D] = []
 var last_lamp_phase := -1
 var transport: Node3D
+var game: Node3D
 var step_accumulator := 0.0
 var pedestrians: Array[Node] = []
 var autonomous_nodes: Array[Node3D] = []
@@ -99,7 +100,7 @@ func _ready() -> void:
 		car.set_meta("traffic_straight",true)
 		add_child(car)
 		car.add_child(preload("res://simulation/service_audio.gd").new())
-		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"kind":kind,"speed":7.0+float(i%5)*1.4})
+		cars.append({"node":car,"vertical":vertical,"lane":lane,"direction":direction,"offset":offset,"distance":fposmod(i*23.7,310.0)-155.0,"kind":kind,"speed":7.0+float(i%5)*1.4,"service_after":360.0+float(i)*35.0,"service_interval":1800.0,"robotics_service_state":"","robotics_service_bay":-1,"robotics_service_clock":0.0,"robotics_service_index":0,"robotics_service_path":PackedVector3Array(),"robotics_outbound_path":PackedVector3Array()})
 	# Reuse part of the existing fleet on outer distributors; no extra global fleet cost.
 	for i in range(16,cars.size()):
 		var item:Dictionary=cars[i]
@@ -121,6 +122,64 @@ func _ready() -> void:
 		item.node.position = lane_position(item,float(item.distance))
 	_process(0.0)
 
+func _robotics_service_update(item:Dictionary,delta:float) -> bool:
+	var state:String=str(item.get("robotics_service_state",""))
+	if state=="":
+		if item.get("taken",false) or simulation_time<float(item.get("service_after",INF)):
+			return false
+		if not is_instance_valid(game) or not is_instance_valid(game.cabs):return false
+		var bay_index:int=game.cabs._free_robotics_bay()
+		if bay_index<0:
+			item.service_after=simulation_time+30.0
+			return false
+		var bay_point:Vector3=game.cabs.robotics_bays[bay_index].point
+		var path:PackedVector3Array=game.cabs._robotics_path_to_bay(item.node.global_position,bay_point,item.node.global_basis.z)
+		if path.is_empty():
+			item.service_after=simulation_time+30.0
+			return false
+		if path[0].distance_to(item.node.global_position)>.05:path.insert(0,item.node.global_position)
+		game.cabs.robotics_bays[bay_index]["vehicle"]=item.node
+		item.robotics_service_bay=bay_index;item.taken=true
+		item.robotics_service_state="robotics_service_travel";item.robotics_service_clock=0.0;item.robotics_service_index=0
+		item.robotics_service_path=path;item.robotics_outbound_path=path.duplicate()
+		return true
+	if not is_instance_valid(game) or not is_instance_valid(game.cabs):return true
+	if state=="robotics_service_charge":
+		item.speed=0.0;item.robotics_service_clock=float(item.robotics_service_clock)+delta
+		if float(item.robotics_service_clock)>=22.0:
+			var reverse:=PackedVector3Array([item.node.global_position])
+			for i in range(item.robotics_outbound_path.size()-2,-1,-1):
+				if reverse[-1].distance_to(item.robotics_outbound_path[i])>.05:reverse.append(item.robotics_outbound_path[i])
+			item.robotics_service_path=reverse;item.robotics_service_index=0;item.robotics_service_state="robotics_service_return"
+		return true
+	if state in ["robotics_service_travel","robotics_service_return"]:
+		if item.robotics_service_path.is_empty() or int(item.robotics_service_index)>=item.robotics_service_path.size():
+			if state=="robotics_service_travel":
+				var index:int=int(item.robotics_service_bay)
+				if index>=0 and index<game.cabs.robotics_bays.size() and game.cabs.robotics_bays[index].get("vehicle")==item.node:
+					item.node.global_position=game.cabs.robotics_bays[index].point
+					item.robotics_service_clock=0.0;item.speed=0.0;item.robotics_service_state="robotics_service_charge"
+				else:
+					_release_traffic_robotics_bay(item);item.taken=false;item.robotics_service_state="";item.service_after=simulation_time+35.0
+			else:
+				_release_traffic_robotics_bay(item);item.taken=false;item.speed=0.0;item.robotics_service_state=""
+				item.robotics_service_path=PackedVector3Array();item.robotics_outbound_path=PackedVector3Array();item.robotics_service_index=0
+				item.service_after=simulation_time+float(item.get("service_interval",720.0))
+				item.distance=item.node.global_position.z if item.vertical else item.node.global_position.x
+			return true
+		var mover:Dictionary={"node":item.node,"path":item.robotics_service_path,"index":item.robotics_service_index,"speed":item.speed,"half_length":2.3,"body_size":Vector3(1.8,1.5,4.3),"fast":false}
+		game.cabs._advance_route(mover,delta)
+		item.robotics_service_index=int(mover.index);item.speed=float(mover.speed)
+		return true
+	return true
+
+func _release_traffic_robotics_bay(item:Dictionary) -> void:
+	if not is_instance_valid(game) or not is_instance_valid(game.cabs):return
+	var index:int=int(item.get("robotics_service_bay",-1))
+	if index>=0 and index<game.cabs.robotics_bays.size() and game.cabs.robotics_bays[index].get("vehicle")==item.node:
+		game.cabs.robotics_bays[index]["vehicle"]=null
+	item.robotics_service_bay=-1
+
 func _process(delta: float) -> void:
 	simulation_time+=delta
 	crowd_refresh -= delta
@@ -131,6 +190,7 @@ func _process(delta: float) -> void:
 	_update_lamps()
 	_rebuild_lane_groups()
 	for item in cars:
+		if _robotics_service_update(item,delta):continue
 		if item.get("taken",false):
 			continue
 		var vertical: bool = item.vertical
